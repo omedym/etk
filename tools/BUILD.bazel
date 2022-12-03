@@ -1,0 +1,2 @@
+# Currently there are no targets in this Bazel package
+package(default_visibility = ["//visibility:public"])
