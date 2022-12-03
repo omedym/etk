@@ -1,0 +1,22 @@
+# Import Aspect bazelrc presets
+import %workspace%/.aspect/bazelrc/bazel6.bazelrc
+import %workspace%/.aspect/bazelrc/convenience.bazelrc
+import %workspace%/.aspect/bazelrc/correctness.bazelrc
+import %workspace%/.aspect/bazelrc/debug.bazelrc
+import %workspace%/.aspect/bazelrc/javascript.bazelrc
+import %workspace%/.aspect/bazelrc/performance.bazelrc
+
+### PROJECT SPECIFIC OPTIONS GO HERE ###
+
+build --disk_cache=~/.cache/bazel-disk-cache
+build --strategy=TsProject=sandboxed
+build --symlink_prefix=dist/
+
+test --test_output=all
+coverage --instrument_test_targets
+
+# Load any settings & overrides specific to the current user from `./bazelrc.user`.
+# This file should appear in `.gitignore` so that settings are not shared with team members. This
+# should be last statement in this config so the user configuration is able to overwrite flags from
+# this file. See https://bazel.build/configure/best-practices#bazelrc-file.
+try-import %workspace%/.bazelrc.user

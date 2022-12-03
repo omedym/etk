@@ -1,0 +1,49 @@
+load("//tools:workspace_dir.bzl", "write_workspace_dir")
+load("@aspect_bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
+load("@aspect_rules_ts//ts:defs.bzl", "ts_config")
+load("@aspect_rules_js//npm:defs.bzl", "npm_link_package")
+load("@npm//:defs.bzl", "npm_link_all_packages")
+
+package(default_visibility = ["//visibility:public"])
+
+write_workspace_dir(
+  name = "workspace_dir",
+)
+
+ts_config(
+  name = "tsconfig",
+  src = "tsconfig.bazel.json",
+)
+
+npm_link_package(
+  name = "node_modules/@omedym/nestjs-dmq-core",
+  src = "//packages/core:js",
+)
+
+npm_link_all_packages(name = "node_modules")
+
+copy_to_bin(
+  name = "jest_config_unit",
+  srcs = ["jest.unit.config.js"],
+  visibility = ["//visibility:public"],
+)
+
+filegroup(
+  name = "test_unit_deps",
+  srcs = [
+    "//:node_modules/@jest/core",
+    "//:node_modules/@jest/transform",
+    "//:node_modules/@nestjs/testing",
+    "//:node_modules/@types",
+    "//:node_modules/@types/jest",
+    "//:node_modules/@types/supertest",
+    "//:node_modules/c8",
+    "//:node_modules/jest-junit",
+    "//:node_modules/jest-mock-extended",
+    "//:node_modules/neverthrow",
+    "//:node_modules/reflect-metadata",
+    "//:node_modules/supertest",
+    "//:node_modules/ts-jest",
+  ],
+  visibility = ["//visibility:public"],
+)

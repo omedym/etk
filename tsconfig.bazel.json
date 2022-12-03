@@ -1,0 +1,35 @@
+{
+  // Bazel Specific TypeScript Config
+  "compilerOptions": {
+    "allowSyntheticDefaultImports": true,
+    "baseUrl": ".",
+    "composite": true,
+    "declaration": true,
+    "emitDecoratorMetadata": true,
+    "esModuleInterop": true,
+    "experimentalDecorators": true,
+    "forceConsistentCasingInFileNames": true,
+    // "importHelpers": true,
+    "incremental": true,
+    "inlineSourceMap": true,
+    "lib": ["ESNext"],
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "resolveJsonModule": true,
+    "rootDir": ".",
+    // "skipDefaultLibCheck": false,
+    // "skipLibCheck": false,
+    "strict": true,
+    "strictNullChecks": true,
+    "strictPropertyInitialization": false,
+    "target": "ESNext",
+    //"types": ["node"]
+    "noImplicitAny": true,
+    "noImplicitReturns": true,
+  },
+  // If building without sandboxing, we need to prevent TypeScript from descending into
+  // Bazel's external folder which contains third-party Bazel dependencies.
+  "exclude": [
+    "external/*"
+  ]
+}

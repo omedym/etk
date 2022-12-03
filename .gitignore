@@ -1,0 +1,38 @@
+lib-cov
+*.csv
+*.dat
+*.gz
+*.log
+*.out
+*.pid
+*.seed
+*.swp
+*.zip
+
+logs
+pids
+results
+tmp
+
+# Build
+**/dist/**/*
+*.tsbuildinfo
+
+# Coverage reports
+coverage
+
+# API keys and secrets
+.bazelrc.user
+.env
+.envrc
+
+# Dependency directory
+node_modules
+
+# Editors
+*.iml
+.idea
+
+# OS metadata
+.DS_Store
+Thumbs.db
