@@ -1,3 +1,4 @@
+load("@aspect_rules_jest//jest:defs.bzl", "jest_test")
 load("@aspect_rules_ts//ts:defs.bzl", "ts_config", "ts_project")
 
 package(default_visibility = ["//visibility:public"])
@@ -9,7 +10,16 @@ ts_config(
 )
 
 _DEPS = [
+  "//:node_modules/@nestjs/bullmq",
+  "//:node_modules/@nestjs/common",
+  "//:node_modules/@paralleldrive/cuid2",
+  "//:node_modules/ajv",
+  "//:node_modules/bullmq",
+  "//:node_modules/cloudevents",
+  "//:node_modules/luxon",
+
   # Dev Dependencies
+  "//:node_modules/@types/luxon",
   "//:node_modules/@types/node",
 ]
 
@@ -24,4 +34,16 @@ ts_project(
   tsconfig = ":tsconfig_bazel",
   validate = False,
   deps = _DEPS,
+)
+
+jest_test(
+  name = "test",
+  config = "//:jest_config_unit",
+  data = _DEPS
+    + glob(["src/**/*.ts"], exclude = ["src/**/*.integration.test.ts"])
+    + ["//:test_unit_deps", ":tsconfig_bazel"],
+  log_level = "info",
+  node_modules = "//:node_modules",
+  tags = ["unit"],
+  timeout = "short",
 )
