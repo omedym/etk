@@ -1,6 +1,11 @@
-import type { IMessage } from './base/Message';
+import type { IMessage, IMessageDefinition } from './base/Message';
 import type { IMessageData, IUnknownMessageData } from './base/MessageData';
 import type { IMessageMetadata } from './base/MessageMetadata';
+
+
+export interface IEventDefinition extends IMessageDefinition {
+  messageType: 'event';
+}
 
 export interface IEventData extends IMessageData { }
 
