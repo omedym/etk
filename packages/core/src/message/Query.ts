@@ -1,5 +1,9 @@
-import type { IRequest, IRequestData, IRequestMetadata } from './Request';
+import type { IRequest, IRequestData, IRequestDefinition, IRequestMetadata } from './Request';
 import type { IUnknownMessageData } from './base/MessageData';
+
+export interface IQueryDefinition extends IRequestDefinition {
+  messageType: 'query';
+}
 
 export interface IQueryData extends IRequestData {}
 

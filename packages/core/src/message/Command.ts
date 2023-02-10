@@ -1,5 +1,10 @@
-import type { IRequest, IRequestData, IRequestMetadata } from './Request';
+import type { IRequest, IRequestData, IRequestDefinition, IRequestMetadata } from './Request';
 import type { IUnknownMessageData } from './base/MessageData';
+
+
+export interface ICommandDefinition extends IRequestDefinition {
+  messageType: 'command';
+}
 
 export interface ICommandData extends IRequestData {}
 
