@@ -4,6 +4,25 @@ import type { IMessageContext } from './MessageContext';
 import type { IMessageData, IUnknownMessageData } from './MessageData';
 import type { IMessageMetadata } from './MessageMetadata';
 
+/**
+ * IMessage
+ *
+ * The base interface for a message in an event driven architecture.
+ *
+ * This is a wrapper around a versioned interface, IMessageV1 to allow
+ * for easier replacement and introduction of new versions of this
+ * interface should the need arise.
+ *
+ * It leverages unifying concepts from CloudEvents and adds additional
+ * custom extensions from prior experiences and other framework
+ * interpretations.
+ */
+export interface IMessage<
+  TData extends IMessageData = IUnknownMessageData,
+  TMetadata extends IMessageMetadata = IMessageMetadata,
+>
+  extends IMessageV1<TData, TMetadata> { }
+
 export interface IMessageV1<
   TData extends IMessageData = IUnknownMessageData,
   TMetadata extends IMessageMetadata = IMessageMetadata,
@@ -54,21 +73,3 @@ export interface IMessageV1<
   tenantid: string;
 }
 
-/**
- * IMessage
- *
- * The base interface for a message in an event driven architecture.
- *
- * This is a wrapper around a versioned interface, IMessageV1 to allow
- * for easier replacement and introduction of new versions of this
- * interface should the need arise.
- *
- * It leverages unifying concepts from CloudEvents and adds additional
- * custom extensions from prior experiences and other framework
- * interpretations.
- */
-export interface IMessage<
-  TData extends IMessageData = IUnknownMessageData,
-  TMetadata extends IMessageMetadata = IMessageMetadata,
->
-  extends IMessageV1<TData, TMetadata> { }
