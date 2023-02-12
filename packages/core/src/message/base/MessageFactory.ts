@@ -15,6 +15,7 @@ export abstract class AbstractMessageFactory<
 
   build(
     tenantId: string,
+    source: string,
     data: TData,
     metadata?: TMetadata,
   ): TMessage {
@@ -32,7 +33,7 @@ export abstract class AbstractMessageFactory<
       metadata: metadata ? metadata : DefaultMessageMetadata,
       specversion: '1.0',
       tenantid: tenantId,
-      source: '',
+      source: source,
       context: {
         tenantId: tenantId,
       },
