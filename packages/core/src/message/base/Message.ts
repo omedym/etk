@@ -53,7 +53,7 @@ export interface IMessageV1<
    * ```
    *   idempotencykey = crypto
    *     .createHash('md5')
-   *     .update(JSON.stringify(message))
+   *     .update(stableStringify(message))
    *     .digest('hex'); // 0800fc577294c34e0b28ad2839435945
    * ```
    * @example 0800fc577294c34e0b28ad2839435945
