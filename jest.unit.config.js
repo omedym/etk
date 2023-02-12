@@ -10,17 +10,14 @@ module.exports = {
   testEnvironment: 'node',
   testPathIgnorePatterns: ['/node_modules/'],
   testMatch: [
-    '**/*.{test}.{ts,tsx}',
-    // '**/*.unit.{spec,test}.{ts,tsx}',
-    '!**/*.{integration}.{test}.{ts,tsx}',
+    '**/*.test.{ts,tsx}',
+    '!**/*.integration.test.{ts,tsx}',
   ],
   transform: {
     // '^.+\\.[tj]sx?$' to process js/ts with `ts-jest`
-    // '^.+\\.m?[tj]sx?$' to process js/ts/mjs/mts with `ts-jest`
     '^.+\\.tsx?$': [
       'ts-jest',
       {
-        // tsconfig: 'tsconfig.bazel.json',
         // KEEP IN SYNC WITH `tsconfig.bazel.json`
         tsconfig: {
           "allowSyntheticDefaultImports": true,
@@ -41,7 +38,7 @@ module.exports = {
           "rootDir": ".",
           // "skipDefaultLibCheck": false,
           // "skipLibCheck": false,
-          "strict": false,
+          "strict": true,
           "strictNullChecks": true,
           "strictPropertyInitialization": false,
           "target": "ESNext",
@@ -49,16 +46,19 @@ module.exports = {
           "noImplicitAny": true,
           "noImplicitReturns": true,
         },
+        "exclude": [
+          "external/*"
+        ]
       },
     ],
   },
   verbose: false,
   coverageThreshold: {
-    global: {
-      // branches: 50,
-      // functions: 15,
-      // lines: 50,
-      // statements: -10,
-    },
+    // global: {
+    //   branches: 50,
+    //   functions: 15,
+    //   lines: 50,
+    //   statements: -10,
+    // },
   },
 };

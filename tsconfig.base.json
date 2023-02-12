@@ -26,7 +26,6 @@
     // "types": ["node"],
     "noImplicitAny": true,
     "noImplicitReturns": true,
-    "baseUrl": ".",
     "paths": {
       "@omedym/*": ["dist/bin/node_modules/@omedym/*"],
       "@omedym/nestjs-dmq-core": ["./packages/nestjs-dmq-core/src/index"],

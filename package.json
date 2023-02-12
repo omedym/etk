@@ -4,14 +4,15 @@
   "version": "0.1.0",
   "author": "Omedym, LLC",
   "license": "MIT",
-  "packageManager": "^pnpm@8.4",
+  "packageManager": "^pnpm@8.4.0",
   "engines": {
     "node": ">=16",
     "pnpm": ">=8.4 <9"
   },
   "scripts": {
     "build": "bazel build --build_tag_filters=ts -- //...",
-    "test": "bazel test --build_tag_filters=test -- //..."
+    "test": "bazel test --test_tag_filters=unit //...",
+    "coverage": "bazel coverage --test_tag_filters=unit //..."
   },
   "dependencies": {
     "@nestjs/bullmq": "^10.0.1",
@@ -33,6 +34,7 @@
     "@bazel/ibazel": "^0.23.7",
     "@jest/core": "^29.6.4",
     "@jest/transform": "^29.6.4",
+    "@nestjs/testing": "^10.2.1",
     "@types/jest": "^29.5.4",
     "@types/luxon": "^2.4.0",
     "@types/node": "^16.18.16",
@@ -42,15 +44,16 @@
     "jest-cli": "^29.6.4",
     "jest-junit": "14.0.1",
     "jest-mock-extended": "^3.0.5",
+    "neverthrow": "^6.0.0",
     "prettier": "^2.8.8",
     "reflect-metadata": "^0.1.13",
     "supertest": "^6.3.3",
     "ts-jest": "^29.1.1",
     "tslib": "^2.6.2",
-    "typescript": "4.9.3"
+    "typescript": "^4.9.5"
   },
   "resolutions": {
-    "typescript": "4.9.3",
-    "@types/node": "^16"
+    "@types/node": "^16",
+    "typescript": "^4.9.5"
   }
 }

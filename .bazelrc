@@ -13,7 +13,13 @@ build --strategy=TsProject=sandboxed
 build --symlink_prefix=dist/
 
 test --test_output=all
+test --nocollect_code_coverage
+test --build_tag_filters=ts
+test --test_arg=--passWithNoTests
+
 coverage --instrument_test_targets
+coverage --collect_code_coverage
+coverage --experimental_fetch_all_coverage_outputs
 
 # Load any settings & overrides specific to the current user from `./bazelrc.user`.
 # This file should appear in `.gitignore` so that settings are not shared with team members. This
