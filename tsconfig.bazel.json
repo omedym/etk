@@ -1,5 +1,6 @@
 {
   // Bazel Specific TypeScript Config
+  // KEEP IN SYNC WITH `jest.unit.config.js`
   "compilerOptions": {
     "allowSyntheticDefaultImports": true,
     "baseUrl": ".",
