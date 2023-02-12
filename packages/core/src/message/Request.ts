@@ -1,5 +1,6 @@
-import type { IMessage, IMessageDefinition } from './base/Message';
+import type { IMessage } from './base/Message';
 import type { IMessageData, IUnknownMessageData } from './base/MessageData';
+import type { IMessageDefinition } from './base/MessageDefinition';
 import type { IMessageMetadata } from './base/MessageMetadata';
 
 
