@@ -5,22 +5,6 @@ import type { IMessageData, IUnknownMessageData } from './MessageData';
 import type { IMessageMetadata } from './MessageMetadata';
 
 /**
- * IMessageDefinition
- *
- * The base interface for defining messages and their type oriented metadata
- * such as their source and version.
- */
-export interface IMessageDefinition {
-  messageType: 'command' | 'event' | 'query';
-  cloudEvent: {
-    dataContentType: 'application/json';
-    source: string;
-    type: string;
-    specVersion: '1.0';
-  },
-}
-
-/**
  * IMessage
  *
  * The base interface for a message in an event driven architecture.
@@ -88,4 +72,3 @@ export interface IMessageV1<
 
   tenantid: string;
 }
-
