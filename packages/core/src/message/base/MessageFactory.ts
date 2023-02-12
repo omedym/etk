@@ -1,10 +1,18 @@
 import type { IMessage } from './Message';
 import type { IMessageData } from './MessageData';
 import type { IMessageDefinition } from './MessageDefinition';
-import { IMessageMetadata, DefaultMessageMetadata } from './MessageMetadata';
+import type { IMessageMetadata } from './MessageMetadata';
 
+import crypto from 'crypto';
+import stableStringify from "safe-stable-stringify";
 import { DateTime } from 'luxon';
 import { createId } from '@paralleldrive/cuid2';
+
+import { DefaultMessageMetadata } from './MessageMetadata';
+
+
+// type ExtractMessageData<M> = M extends IMessage<infer TData> ? TData : IMessageData;
+// type ExtractMessageMetadata<M> = M extends IMessage<infer TMetadata> ? TMetadata: IMessageMetadata;
 
 export abstract class AbstractMessageFactory<
   TData extends IMessageData,
@@ -41,4 +49,37 @@ export abstract class AbstractMessageFactory<
 
     return message;
   }
+
+  seal(
+    message: TMessage,
+  ): TMessage {
+    if(message.idempotencykey)
+      return message;
+
+    const verificationKey = crypto
+      .createHash('md5')
+      .update(stableStringify(message))
+      .digest('hex');
+
+    const sealedMessage = {
+      ...message,
+      idempotencykey: verificationKey,
+    }
+
+    return sealedMessage;
+  }
+
+  verify(
+    message: TMessage
+  ): boolean {
+    const { idempotencykey, ...unsealedMessage } = message;
+
+    const verifiedKey = crypto
+      .createHash('md5')
+      .update(stableStringify(unsealedMessage))
+      .digest('hex');
+
+    return verifiedKey == idempotencykey;
+  }
+
 }
