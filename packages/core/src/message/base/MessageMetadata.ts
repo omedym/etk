@@ -27,3 +27,6 @@ export interface IMessageOriginMetadata {
 }
 
 export interface IMessageMetadata extends IMessageOriginMetadata { }
+
+export const DefaultMessageMetadata: IMessageMetadata = {
+};
