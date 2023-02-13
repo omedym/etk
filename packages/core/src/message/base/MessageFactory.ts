@@ -3,6 +3,7 @@ import type { IMessageData } from './MessageData';
 import type { IMessageDefinition } from './MessageDefinition';
 import type { IMessageMetadata } from './MessageMetadata';
 
+import Ajv from 'ajv';
 import crypto from 'crypto';
 import stableStringify from "safe-stable-stringify";
 import { DateTime } from 'luxon';
@@ -20,6 +21,7 @@ export abstract class AbstractMessageFactory<
   TMessage extends IMessage<TData, TMetadata>,
 > {
   abstract definition: IMessageDefinition;
+  abstract schema: object;
 
   build(
     tenantId: string,
@@ -70,7 +72,7 @@ export abstract class AbstractMessageFactory<
   }
 
   verify(
-    message: TMessage
+    message: TMessage,
   ): boolean {
     const { idempotencykey, ...unsealedMessage } = message;
 
@@ -80,6 +82,20 @@ export abstract class AbstractMessageFactory<
       .digest('hex');
 
     return verifiedKey == idempotencykey;
+  }
+
+  validate(
+    message: TMessage,
+    throwOnError: boolean = false
+  ): { isValid: boolean, errors: Ajv.ErrorObject[]} {
+    const ajv = new Ajv();
+    const validate = ajv.compile(this.schema)
+
+    const valid = validate(message);
+
+    if (valid) return { isValid: true, errors: [] };
+
+    return { isValid: false, errors: validate.errors ?? []};
   }
 
 }

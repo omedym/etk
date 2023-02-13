@@ -66,7 +66,7 @@ export interface IMessageV1<
 
   /**
    * @default 1.0
-   * @pattern /1.0/g
+   * @pattern 1.0
    */
   specversion: string;
 
