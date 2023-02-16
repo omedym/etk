@@ -1,19 +1,23 @@
 import { ICommand, ICommandDefinition } from '../message/Command';
-import type { IGatewayDefinition } from './base';
-import { AbstractGateway } from './base';
+import { AbstractQueuedGateway, IQueuedGatewayDefinition } from './queued';
 
-export interface ICommandGatewayDefinition extends IGatewayDefinition {
+export interface ICommandGatewayDefinition extends IQueuedGatewayDefinition {
   gatewayType: 'command';
   allows: ICommandDefinition[];
 }
 
-export abstract class AbstractCommandGateway<
-  TDefinition extends ICommandGatewayDefinition = ICommandGatewayDefinition
-> extends AbstractGateway<TDefinition> {
+export interface ICommandGateway {
+  readonly definition: ICommandGatewayDefinition;
+  send: <T extends ICommand>(command: T) => Promise<void>
+}
 
-  send<T extends ICommand>(
+export abstract class AbstractCommandGateway<T extends ICommandGatewayDefinition = ICommandGatewayDefinition>
+  extends AbstractQueuedGateway<T>
+  implements ICommandGateway
+{
+  async send<T extends ICommand>(
     command: T,
   ) {
-    this.publishOrSend(command);
+    super.publishOrSend(command);
   }
 }
