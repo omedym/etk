@@ -6,7 +6,6 @@ import { IMessageDefinition } from '../../message/base/MessageDefinition';
  * The base interface for defining gateways and the types of messages they allow.
  */
 export interface IGatewayDefinition {
-  gatewayType: 'command' | 'event';
+  gatewayType: 'command' | 'event' | 'query' | 'message';
   allows: IMessageDefinition[];
-  queue: string;
 }

@@ -1,5 +1,5 @@
-import { IEvent, IEventDefinition, AbstractMessageFactory, IEventMetadata } from '../../message';
-import { IEventGatewayDefinition, AbstractEventGateway } from '../EventGateway';
+import { IEvent, IEventDefinition, AbstractMessageFactory, IEventMetadata } from '../message';
+import { IEventGatewayDefinition, AbstractEventGateway } from './EventGateway';
 
 describe('Gateway', () => {
 
@@ -85,3 +85,4 @@ describe('Gateway', () => {
       .toThrow();
   });
 });
+

@@ -1,17 +1,21 @@
 import type { IEvent, IEventDefinition } from '../message/Event';
-import type { IGatewayDefinition } from './base';
-import { AbstractGateway } from './base';
+import { AbstractQueuedGateway, IQueuedGatewayDefinition } from '../gateway/queued';
 
-export interface IEventGatewayDefinition extends IGatewayDefinition {
+export interface IEventGatewayDefinition extends IQueuedGatewayDefinition {
   gatewayType: 'event';
   allows: IEventDefinition[];
 }
 
-export abstract class AbstractEventGateway<
-  TDefinition extends IEventGatewayDefinition = IEventGatewayDefinition
-  > extends AbstractGateway<TDefinition> {
+export interface IEventGateway {
+  readonly definition: IEventGatewayDefinition;
+  publish: <T extends IEvent>(event: T) => Promise<void>;
+}
 
-  publish<T extends IEvent>(
+export abstract class AbstractEventGateway<T extends IEventGatewayDefinition = IEventGatewayDefinition>
+  extends AbstractQueuedGateway<T>
+  implements IEventGateway
+{
+  async publish<T extends IEvent>(
     event: T,
   ) {
     this.publishOrSend(event)
