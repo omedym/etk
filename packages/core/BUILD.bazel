@@ -75,3 +75,15 @@ jest_test(
   tags = ["unit"],
   timeout = "short",
 )
+
+jest_test(
+  name = "integration_test",
+  config = "//:jest_config_integration",
+  data = _DEPS
+    + glob(["src/**/*.ts", "test/**/*.ts"])
+    + ["//:test_integration_deps", ":tsconfig_bazel"],
+  log_level = "info",
+  node_modules = "//:node_modules",
+  tags = ["integration"],
+  timeout = "short",
+)

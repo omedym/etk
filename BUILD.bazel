@@ -28,6 +28,12 @@ copy_to_bin(
   visibility = ["//visibility:public"],
 )
 
+copy_to_bin(
+  name = "jest_config_integration",
+  srcs = ["jest.integration.config.js"],
+  visibility = ["//visibility:public"],
+)
+
 filegroup(
   name = "test_unit_deps",
   srcs = [
@@ -43,6 +49,23 @@ filegroup(
     "//:node_modules/reflect-metadata",
     "//:node_modules/supertest",
     "//:node_modules/ts-jest",
+  ],
+  visibility = ["//visibility:public"],
+)
+
+filegroup(
+  name = "test_integration_deps",
+  srcs = [
+    ":test_unit_deps",
+    "//:node_modules/@bazel/runfiles",
+    "//:node_modules/@nestjs/testing",
+    "//:node_modules/@prisma/client",
+    "//:node_modules/@types/async-redis",
+    "//:node_modules/async-redis",
+    "//:node_modules/prisma",
+    "//:node_modules/testcontainers",
+  ],
+  data = [
   ],
   visibility = ["//visibility:public"],
 )
