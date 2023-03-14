@@ -6,6 +6,7 @@ import { createId } from '@paralleldrive/cuid2';
 import { DateTime } from 'luxon';
 import { Job, Queue } from 'bullmq';
 import { GenericContainer, StartedTestContainer } from 'testcontainers';
+import stableStringify from 'safe-stable-stringify';
 
 const TestConfig = {
   redis: {
@@ -80,7 +81,8 @@ class QueueListener extends QueueEventsHost {
 
   _onAdded(jobId: string, name: string) { this.log(`Job ${jobId} Added: ${name}`) };
   _onCompleted(jobId: string, returnvalue: string) { this.log(`Job ${jobId} Completed: ${returnvalue}`) };
-  _onDelayed(jobId: string, delay: number) { this.log(`Job ${jobId} Delayed: ${delay}`)}
+  _onDelayed(jobId: string, delay: number) { this.log(`Job ${jobId} Delayed: ${DateTime.fromMillis(Number(delay)).toISO()}`) };
+  _onError(error: Error) { this.log(`Queue Error: ${error.name}, ${error.message}, ${error.cause}`) };
   _onPaused() { this.log(`Queue Paused`) };
   _onResumed() { this.log(`Queue Resumed`) };
 
@@ -94,6 +96,9 @@ class QueueListener extends QueueEventsHost {
 
   @OnQueueEvent('delayed')
   onDelayed(event: { jobId: string, delay: number }, id: string) { this._onDelayed(event.jobId, event.delay) }
+
+  @OnQueueEvent('error')
+  onError(event: Error) { this._onError(event) }
 
   @OnQueueEvent('paused')
   onPaused() { this._onPaused(); }
@@ -109,7 +114,7 @@ describe('BullMQ Processor', () => {
 
   let app: INestApplication;
   let container: StartedTestContainer;
-  let externalService: ExternalService
+  let externalService: ExternalService;
   let listener: QueueListener;
   let processor: BaseTestProcessor;
   let producer: { queue: Queue };
@@ -132,13 +137,15 @@ describe('BullMQ Processor', () => {
         onAdded: jest.spyOn(target.queueListener, '_onAdded'),
         onCompleted: jest.spyOn(target.queueListener, '_onCompleted'),
         onDelayed: jest.spyOn(target.queueListener, '_onDelayed'),
+        onError: jest.spyOn(target.queueListener, '_onError'),
         onPaused: jest.spyOn(target.queueListener, '_onPaused'),
         onResumed: jest.spyOn(target.queueListener, '_onResumed'),
       },
       external: {
         getResult: jest.spyOn(target.externalService, 'getResult')
       },
-      showListenerLogs: () => TestConfig.bullMq.showLogs && console.warn(JSON.stringify(listener.logs, null, 2)),
+      showListenerLogs: (warn: boolean = false) => (warn || TestConfig.bullMq.showLogs)
+        && console.warn(JSON.stringify(listener.logs, null, 2)),
   }};
 
   beforeAll(async ()  => {
@@ -260,7 +267,7 @@ describe('BullMQ Processor', () => {
       await producer.queue.add(cuid, {});
       await processor.worker.delay(TestConfig.bullMq.delayMs * minRequests);
 
-      spies.showListenerLogs();
+      spies.showListenerLogs(true);
 
       expect(spies.external.getResult).toHaveBeenCalledTimes(3);
       expect(spies.queue.onLog).toHaveBeenCalledTimes(4);
@@ -270,6 +277,44 @@ describe('BullMQ Processor', () => {
       expect(listener.logs).toContain(`[001] Job 1 Added: ${cuid}`);
       expect(listener.logs).toContain('[004] Job 1 Completed: done');
       expect(spies.console.info).toHaveBeenCalledWith(`Job 1 Processing: ${cuid}`);
+    });
+
+    it('long delayed job remains in queue', async () => {
+      const minRequests = 10;
+      const newService = new ExternalService({ minRequests });
+
+      processor.handler = async (job: Job, token: string) => {
+        console.info(`Job ${job.id} Processing: ${job.name}`);
+
+        const result = await newService.getResult();
+        if (result == 'done') return result;
+
+        console.info(`Job ${job.id} Delayed, External Service is still ${result}`);
+        await job.moveToDelayed(DateTime.now().plus({ seconds: 2}).toMillis(), token);
+        return;
+      }
+
+      const spies = insertQueueSpies({ externalService: newService });
+
+      const cuid = createId();
+      await producer.queue.add(cuid, {});
+      await processor.worker.delay(TestConfig.bullMq.delayMs * 3);
+
+      spies.showListenerLogs();
+
+      expect(await producer.queue.getDelayedCount()).toEqual(1);
+
+      const delayedJobs = await producer.queue.getDelayed();
+      expect (delayedJobs.length).toEqual(1);
+
+      // const job = delayedJobs[0];
+      // const jobOptions = job.opts;
+      // const jobState = await job.getState();
+      // console.warn(`delayedJob`, { delayedJob: stableStringify(job, null, 2) });
+      // console.warn(`delayedJob.options`, { opts: stableStringify(jobOptions, null, 2) });
+      // console.warn(`delayedJob.state`, { state: stableStringify(jobState, null, 2) });
+
+      // expect(DateTime.fromMillis(job.timestamp).toISO()).toEqual(delay.toISO());
     });
   });
 });
