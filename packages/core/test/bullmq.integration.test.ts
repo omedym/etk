@@ -1,5 +1,5 @@
 import { Injectable, INestApplication } from '@nestjs/common';
-import { InjectQueue, BullModule, Processor, OnQueueEvent, QueueEventsListener, QueueEventsHost } from '@nestjs/bullmq';
+import { InjectQueue, BullModule, Processor, OnQueueEvent, OnWorkerEvent, QueueEventsListener, QueueEventsHost } from '@nestjs/bullmq';
 import { WorkerHost } from '@nestjs/bullmq';
 import { Test } from '@nestjs/testing';
 import { createId } from '@paralleldrive/cuid2';
@@ -49,6 +49,8 @@ class BaseTestProcessor extends WorkerHost {
   public externalService: ExternalService;
   public handler: (job: Job<any, any, string>, token: string) => Promise<any>;
 
+  public logs: string[] = [`[000] Processor Started`];
+
   constructor(externalService: ExternalService) {
     super();
 
@@ -56,6 +58,17 @@ class BaseTestProcessor extends WorkerHost {
 
     this.handler = async (job: Job<any, any, string>, token: string) =>
       await this.externalService.getResult();
+  }
+
+  async log(message: string) {
+    const next = this.logs.length;
+    const entry = next > 99
+      ? next
+      : next > 9
+        ? `0${next}`
+        : `00${next}`;
+
+    this.logs.push(`[${entry}] ${message}`);
   }
 
   async process(job: Job<any, any, string>, token: string): Promise<any> {
@@ -144,8 +157,11 @@ describe('BullMQ Processor', () => {
       external: {
         getResult: jest.spyOn(target.externalService, 'getResult')
       },
+
       showListenerLogs: (warn: boolean = false) => (warn || TestConfig.bullMq.showLogs)
         && console.warn(JSON.stringify(listener.logs, null, 2)),
+      showProcessorLogs: (warn: boolean = false) => (warn || TestConfig.bullMq.showLogs)
+        && console.warn(JSON.stringify(processor.logs, null, 2)),
   }};
 
   beforeAll(async ()  => {
@@ -168,6 +184,26 @@ describe('BullMQ Processor', () => {
     class TestProcessor extends BaseTestProcessor {
       constructor(externalService: ExternalService) {
         super(externalService)
+      }
+
+      @OnWorkerEvent('completed')
+      onCompleted(job: Job<any, any, string>) {
+        this.log(`Job ${job.id} Completed: ${JSON.stringify(job.returnvalue)}`);
+      }
+
+      @OnWorkerEvent('error')
+      onError(error: Error) {
+        this.log(`Processor Error: ${error.name} { message: ${error.message} cause: ${error.cause} }`);
+      };
+
+      @OnWorkerEvent('failed')
+      onFailed(job: Job<any, any, string>, error: Error, prev: string) {
+        this.log(`Job ${job.id} Failed: ${error.name} { message: ${error.message} cause: ${error.cause} }`);
+      };
+
+      @OnWorkerEvent('completed')
+      onPaused(job: Job<any, any, string>, progress: number | object) {
+        this.log(`Job ${job.id} Paused: ${progress}`);
       }
     }
 
@@ -245,7 +281,6 @@ describe('BullMQ Processor', () => {
       expect(spies.console.info).toHaveBeenCalledWith(`Job 1 Processing: ${cuid}`);
     });
 
-
     it('can delay a job', async () => {
       const minRequests = 3;
       const newService = new ExternalService({ minRequests });
@@ -257,7 +292,7 @@ describe('BullMQ Processor', () => {
         if (result == 'done') return result;
 
         console.info(`Job ${job.id} Delayed, External Service is still ${result}`);
-        await job.moveToDelayed(DateTime.now().plus({ milliseconds: 1000 }).toMillis(), token);
+        await job.moveToDelayed(DateTime.now().plus({ milliseconds: TestConfig.bullMq.delayMs / 2 }).toMillis(), token);
         return;
       }
 
@@ -268,6 +303,7 @@ describe('BullMQ Processor', () => {
       await processor.worker.delay(TestConfig.bullMq.delayMs * minRequests);
 
       spies.showListenerLogs(true);
+      spies.showProcessorLogs(true);
 
       expect(spies.external.getResult).toHaveBeenCalledTimes(3);
       expect(spies.queue.onLog).toHaveBeenCalledTimes(4);
@@ -284,12 +320,12 @@ describe('BullMQ Processor', () => {
       const newService = new ExternalService({ minRequests });
 
       processor.handler = async (job: Job, token: string) => {
-        console.info(`Job ${job.id} Processing: ${job.name}`);
+        // console.info(`Job ${job.id} Processing: ${job.name}`);
 
         const result = await newService.getResult();
         if (result == 'done') return result;
 
-        console.info(`Job ${job.id} Delayed, External Service is still ${result}`);
+        // console.info(`Job ${job.id} Delayed, External Service is still ${result}`);
         await job.moveToDelayed(DateTime.now().plus({ seconds: 2}).toMillis(), token);
         return;
       }
@@ -300,7 +336,8 @@ describe('BullMQ Processor', () => {
       await producer.queue.add(cuid, {});
       await processor.worker.delay(TestConfig.bullMq.delayMs * 3);
 
-      spies.showListenerLogs();
+      spies.showListenerLogs(true);
+      spies.showProcessorLogs(true);
 
       expect(await producer.queue.getDelayedCount()).toEqual(1);
 
