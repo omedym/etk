@@ -2,13 +2,29 @@ import { InjectQueue, BullModule, Processor, OnQueueEvent, QueueEventsListener, 
 import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { createId } from '@paralleldrive/cuid2';
-import { Job, Queue } from 'bullmq';
+import { Queue } from 'bullmq';
 import { GenericContainer, StartedTestContainer } from 'testcontainers';
 
 import { TrackedProcessor } from './TrackedProcessor';
 
-const REDIS__PORT = 6379;
-const REDIS__STARTUP_MS = (1000 * 15);
+const TestConfig = {
+  redis: {
+    port: process.env.TESTCONFIG__REDIS__PORT
+      ? Number(process.env.TESTCONFIG__REDIS__PORT) : 6379,
+    startupMs: process.env.TESTCONFIG__REDIS__STARTUP_MS
+      ? Number(process.env.TESTCONFIG__REDIS__STARTUP_MS) : 15000,
+  },
+  bullMq: {
+    delayMs: process.env.TESTCONFIG__BULLMQ__DELAY_MS
+      ? Number(process.env.TESTCONFIG__BULLMQ__DELAY_MS) : 1000,
+    showLogs: process.env.TESTCONFIG__BULLMQ__SHOWLOGS
+    ? Boolean(process.env.TESTCONFIG__BULLMQ__SHOWLOGS) : false,
+  },
+  jest: {
+    timeoutMs: process.env.TESTCONFIG__JEST__TIMEOUT_MS
+      ? Number(process.env.TESTCONFIG__JEST__TIMEOUT_MS) : 10000,
+  },
+};
 
 /** Monitor A BullMQ Queue Using BullMQ Queue Events */
 class QueueListener extends QueueEventsHost {
@@ -50,23 +66,52 @@ class QueueListener extends QueueEventsHost {
 }
 
 describe('TrackedProcessor', () => {
+  jest.setTimeout(TestConfig.jest.timeoutMs);
+
   let testNum = 0;
-  let container: StartedTestContainer;
+
   let app: INestApplication;
-  let processor: TrackedProcessor;
+  let container: StartedTestContainer;
   let listener: QueueListener;
+  let processor: TrackedProcessor;
   let producer: { queue: Queue };
+
+  const insertQueueSpies = (options?: {
+    queueListener?: QueueListener;
+  }) => {
+    const target = {
+      queueListener: options?.queueListener || listener,
+    }
+
+    return {
+      console: {
+        info: jest.spyOn(global.console, 'info'),
+      },
+      queue: {
+        onLog: jest.spyOn(target.queueListener, 'log'),
+        onAdded: jest.spyOn(target.queueListener, '_onAdded'),
+        onCompleted: jest.spyOn(target.queueListener, '_onCompleted'),
+        onDelayed: jest.spyOn(target.queueListener, '_onDelayed'),
+        onPaused: jest.spyOn(target.queueListener, '_onPaused'),
+        onResumed: jest.spyOn(target.queueListener, '_onResumed'),
+      },
+      showListenerLogs: () => TestConfig.bullMq.showLogs && console.warn(`listener.logs`, JSON.stringify(listener.logs, null, 2)),
+  }};
 
   beforeAll(async ()  => {
     container = await new GenericContainer('redis')
-      .withExposedPorts(REDIS__PORT)
-      .withStartupTimeout(REDIS__STARTUP_MS)
+      .withExposedPorts(TestConfig.redis.port)
+      .withStartupTimeout(TestConfig.redis.startupMs)
       .start();
   });
 
   beforeEach(async () => {
     testNum++;
     const QUEUE_NAME = `test_${testNum}`;
+    const redisConnectionOptions = {
+      host: container.getHost(),
+      port: container.getMappedPort(TestConfig.redis.port)
+    };
 
     @Processor(QUEUE_NAME)
     class TestTrackedProcessor extends TrackedProcessor { }
@@ -75,12 +120,13 @@ describe('TrackedProcessor', () => {
       constructor(@InjectQueue(QUEUE_NAME) public queue: Queue) { }
     }
 
-    @QueueEventsListener(QUEUE_NAME)
+    /** The `lastEventId` setting is critical for ensuring the listener captures events that occurred before initialization */
+    @QueueEventsListener(QUEUE_NAME, { lastEventId: '0-0', connection: redisConnectionOptions })
     class TestQueueListener extends QueueListener { }
 
     const moduleRef = await Test.createTestingModule({
       imports: [
-        BullModule.forRoot({ connection: { host: container.getHost(), port: container.getMappedPort(REDIS__PORT) },        }),
+        BullModule.forRoot({ connection: redisConnectionOptions }),
         BullModule.registerQueue({ name: QUEUE_NAME }),
       ],
       providers: [ TestQueue, TestQueueListener, TestTrackedProcessor ],
@@ -106,6 +152,7 @@ describe('TrackedProcessor', () => {
     });
 
     it('CANNOT receive event: paused', async () => {
+      const spies = insertQueueSpies();
       const onPaused = jest.spyOn(listener, '_onPaused');
       await processor.worker.pause(true);
 
@@ -115,31 +162,31 @@ describe('TrackedProcessor', () => {
       // This appears to never be emitted under any circumstances
       // at least as far as integration tests go in terms of trying
       // to validate this event:
-      // expect(onPaused).toHaveBeenCalled();
+      //
+      // spies.showListenerLogs();
+      // expect(spies.queue.onPaused).toHaveBeenCalled();
 
-      expect(onPaused).toHaveBeenCalledTimes(0);
+      expect(spies.queue.onPaused).toHaveBeenCalledTimes(0);
     });
 
     it('can receive emitted event: added', async () => {
-      const consoleSpy = jest.spyOn(global.console, 'info');
-      const onAdded = jest.spyOn(listener, '_onAdded');
+      const spies = insertQueueSpies();
 
       const cuid = createId();
       await producer.queue.add(cuid+'-1', {});
       await producer.queue.add(cuid+'-2', {});
 
-      await processor.worker.delay(4500);
+      await processor.worker.delay(TestConfig.bullMq.delayMs);
 
-      // console.info(`consoleSpy:`, JSON.stringify(consoleSpy.mock.calls, null, 2));
-      console.warn(`listenerLog:`, JSON.stringify(listener.logs, null, 2));
+      spies.showListenerLogs();
+      // console.warn(`consoleLogs:`, JSON.stringify(spies.console.info.mock.calls, null, 2));
 
-
-      expect(onAdded).toHaveBeenCalledTimes(2);
+      expect(spies.queue.onAdded).toHaveBeenCalledTimes(2);
       expect(listener.logs).toContain(`[001] Job 1 Added: ${cuid+'-1'}`);
       expect(listener.logs).toContain(`[002] Job 2 Added: ${cuid+'-2'}`);
 
-      expect(consoleSpy).toHaveBeenCalledWith(`Job 1 Processing: ${cuid+'-1'}`);
-      expect(consoleSpy).toHaveBeenCalledWith(`Job 2 Processing: ${cuid+'-2'}`);
+      expect(spies.console.info).toHaveBeenCalledWith(`Job 1 Processing: ${cuid+'-1'}`);
+      expect(spies.console.info).toHaveBeenCalledWith(`Job 2 Processing: ${cuid+'-2'}`);
     });
   });
 });
