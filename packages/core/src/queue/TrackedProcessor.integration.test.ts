@@ -10,16 +10,40 @@ import { TrackedProcessor } from './TrackedProcessor';
 const REDIS__PORT = 6379;
 const REDIS__STARTUP_MS = (1000 * 15);
 
+/** Monitor A BullMQ Queue Using BullMQ Queue Events */
 class QueueListener extends QueueEventsHost {
-  _onAdded(job: Job) { console.debug(`ADDED ${job.name}`) };
-  _onPaused() { console.debug(`PAUSED`) };
-  _onResumed() { console.debug(`RESUMED`) };
+  logs: string[] = [`[000] Queue Listener Start`];
+
+  log(message: string) {
+    const next = this.logs.length;
+    const entry = next > 99
+      ? next
+      : next > 9
+        ? `0${next}`
+        : `00${next}`;
+
+    this.logs.push(`[${entry}] ${message}`);
+  }
+
+  _onAdded(jobId: string, name: string) { this.log(`Job ${jobId} Added: ${name}`) };
+  _onCompleted(jobId: string, returnvalue: string) { this.log(`Job ${jobId} Completed: ${returnvalue}`) };
+  _onDelayed(jobId: string, delay: number) { this.log(`Job ${jobId} Delayed: ${delay}`)}
+  _onPaused() { this.log(`Queue Paused`) };
+  _onResumed() { this.log(`Queue Resumed`) };
 
   @OnQueueEvent('added')
-  onAdded(job: Job) { this._onAdded(job) }
+  onAdded(event: { jobId: string, name: string }, id: string) { this._onAdded(event.jobId, event.name) }
+
+  @OnQueueEvent('completed')
+  onCompleted(event: { jobId: string, returnvalue: string, prev?: string}, id: string) {
+    this._onCompleted(event.jobId, event.returnvalue);
+  }
+
+  @OnQueueEvent('delayed')
+  onDelayed(event: { jobId: string, delay: number }, id: string) { this._onDelayed(event.jobId, event.delay) }
 
   @OnQueueEvent('paused')
-  onPaused(args: {}, id: string) { this._onPaused(); }
+  onPaused() { this._onPaused(); }
 
   @OnQueueEvent('resumed')
   onResumed() { this._onResumed(); }
@@ -56,17 +80,10 @@ describe('TrackedProcessor', () => {
 
     const moduleRef = await Test.createTestingModule({
       imports: [
-        BullModule.forRoot({
-          connection: {
-            host: container.getHost(),
-            port: container.getMappedPort(REDIS__PORT),
-          },
-        }),
-        BullModule.registerQueue({
-          name: QUEUE_NAME,
-        }),
+        BullModule.forRoot({ connection: { host: container.getHost(), port: container.getMappedPort(REDIS__PORT) },        }),
+        BullModule.registerQueue({ name: QUEUE_NAME }),
       ],
-      providers: [TestTrackedProcessor, TestQueueListener, TestQueue],
+      providers: [ TestQueue, TestQueueListener, TestTrackedProcessor ],
     }).compile();
 
     app = moduleRef.createNestApplication();
@@ -79,13 +96,8 @@ describe('TrackedProcessor', () => {
     await listener.queueEvents.waitUntilReady();
   });
 
-  afterEach(async () => {
-    await app.close();
-  })
-
-  afterAll(async () => {
-    await container.stop();
-  })
+  afterEach(async () => { await app.close(); })
+  afterAll(async () => { await container.stop(); })
 
   describe('event', () => {
     it('can be paused', async () => {
@@ -109,7 +121,7 @@ describe('TrackedProcessor', () => {
     });
 
     it('can receive emitted event: added', async () => {
-      const logSpy = jest.spyOn(global.console, 'debug');
+      const consoleSpy = jest.spyOn(global.console, 'info');
       const onAdded = jest.spyOn(listener, '_onAdded');
 
       const cuid = createId();
@@ -118,11 +130,16 @@ describe('TrackedProcessor', () => {
 
       await processor.worker.delay(4500);
 
-      console.info(`logSpy: `, JSON.stringify(logSpy.mock.calls, null, 2));
+      // console.info(`consoleSpy:`, JSON.stringify(consoleSpy.mock.calls, null, 2));
+      console.warn(`listenerLog:`, JSON.stringify(listener.logs, null, 2));
+
 
       expect(onAdded).toHaveBeenCalledTimes(2);
-      expect(logSpy.mock.calls).toContainEqual([`ADDED ${cuid+'-1'}`]);
-      expect(logSpy.mock.calls).toContainEqual([`ADDED ${cuid+'-2'}`]);
+      expect(listener.logs).toContain(`[001] Job 1 Added: ${cuid+'-1'}`);
+      expect(listener.logs).toContain(`[002] Job 2 Added: ${cuid+'-2'}`);
+
+      expect(consoleSpy).toHaveBeenCalledWith(`Job 1 Processing: ${cuid+'-1'}`);
+      expect(consoleSpy).toHaveBeenCalledWith(`Job 2 Processing: ${cuid+'-2'}`);
     });
   });
 });

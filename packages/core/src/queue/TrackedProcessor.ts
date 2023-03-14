@@ -6,7 +6,7 @@ import { Job } from 'bullmq';
 
 export abstract class TrackedProcessor extends WorkerHost {
   async process(job: Job<any, any, string>): Promise<any> {
-    console.log(`DO PROCESS ${job.data?.seq}`);
+    console.info(`Job ${job.id} Processing: ${job.name}`);
   }
 
   async pause(): Promise<void> {
@@ -14,7 +14,7 @@ export abstract class TrackedProcessor extends WorkerHost {
   }
 
   @OnWorkerEvent('completed')
-  onCompleted(job: any) {
-    console.info(`COMPLETED ${JSON.stringify(job)}`);
+  onCompleted(job: Job<any, any, string>) {
+    console.debug(`Job ${job.id} Completed: ${JSON.stringify(job)}`);
   }
 }
