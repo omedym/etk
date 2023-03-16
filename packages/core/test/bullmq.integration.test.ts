@@ -201,9 +201,19 @@ describe('BullMQ Processor', () => {
         this.log(`Job ${job.id} Failed: ${error.name} { message: ${error.message} cause: ${error.cause} }`);
       };
 
-      @OnWorkerEvent('completed')
-      onPaused(job: Job<any, any, string>, progress: number | object) {
-        this.log(`Job ${job.id} Paused: ${progress}`);
+      @OnWorkerEvent('paused')
+      onPaused() {
+        this.log(`Processor Paused`);
+      }
+
+      @OnWorkerEvent('progress')
+      onProgress(job: Job<any, any, string>, progress: number | object) {
+        this.log(`Job ${job.id} Progress: ${typeof(progress) === 'object' ? JSON.stringify(progress) : progress}`);
+      }
+
+      @OnWorkerEvent('stalled')
+      onStalled(jobId: string, prev: string) {
+        this.log(`Job ${jobId} Stalled: ${JSON.stringify(prev)}`);
       }
     }
 
@@ -353,5 +363,48 @@ describe('BullMQ Processor', () => {
 
       // expect(DateTime.fromMillis(job.timestamp).toISO()).toEqual(delay.toISO());
     });
+  });
+
+  it('can delay a job and set progress', async () => {
+    const minRequests = 3;
+    const newService = new ExternalService({ minRequests });
+
+    processor.handler = async (job: Job, token: string) => {
+      console.info(`Job ${job.id} Processing: ${job.name}`);
+
+      const result = await newService.getResult();
+      if (result == 'done') return result;
+
+      console.info(`Job ${job.id} Delayed, External Service is still ${result}`);
+
+      const unDelayAt = DateTime.now().plus({ milliseconds: TestConfig.bullMq.delayMs / 2 });
+      await job.moveToDelayed(unDelayAt.toMillis(), token);
+      await job.updateProgress({
+        delay: unDelayAt.toMillis(),
+        jobId: job.id,
+        state: (await job.getState()).toString(),
+        unDelayAt: unDelayAt.toISO(),
+      });
+
+      return;
+    }
+
+    const spies = insertQueueSpies({ externalService: newService });
+
+    const cuid = createId();
+    await producer.queue.add(cuid, {});
+    await processor.worker.delay(TestConfig.bullMq.delayMs * minRequests);
+
+    spies.showListenerLogs(true);
+    spies.showProcessorLogs(true);
+
+    expect(spies.external.getResult).toHaveBeenCalledTimes(3);
+    expect(spies.queue.onLog).toHaveBeenCalledTimes(4);
+    expect(spies.queue.onDelayed).toHaveBeenCalledTimes(2);
+    expect(spies.queue.onCompleted).toHaveBeenCalledTimes(1);
+
+    expect(listener.logs).toContain(`[001] Job 1 Added: ${cuid}`);
+    expect(listener.logs).toContain('[004] Job 1 Completed: done');
+    expect(spies.console.info).toHaveBeenCalledWith(`Job 1 Processing: ${cuid}`);
   });
 });
