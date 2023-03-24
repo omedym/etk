@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { DateTime } from 'luxon';
 import { providers } from'./providers';
 import { PrismaService } from './prisma.service';
 import {
@@ -11,11 +12,23 @@ import {
 export class TrackedQueueRepository {
   constructor(@Inject(providers.PRISMA) private readonly prisma: PrismaService) {}
 
-  async trackJob<T extends object>(
-    jobToTrack: TrackJobParams<T>
-  ): Promise<ITrackedQueueJob<T>> {
+  async trackJob<T extends object>(jobToTrack: TrackJobParams<T>): Promise<ITrackedQueueJob<T>> {
+    const now = DateTime.now();
     const trackedJob = await this.prisma.trackedQueueJob.create({
-      data: jobToTrack,
+      data: {
+        ...jobToTrack,
+        createdAt: now.toJSDate(),
+        updatedAt: now.toJSDate(),
+        events: {
+          create: [{
+            state: jobToTrack.state,
+            createdAt: now.toJSDate(),
+          }],
+        },
+      },
+      include: {
+        events: true,
+      }
     });
 
     return trackedJob as unknown as ITrackedQueueJob<T>;
