@@ -1,10 +1,9 @@
+import { InjectQueue, BullModule, Processor, OnQueueEvent, OnWorkerEvent, QueueEventsListener, QueueEventsHost, WorkerHost } from '@nestjs/bullmq';
 import { Injectable, INestApplication } from '@nestjs/common';
-import { InjectQueue, BullModule, Processor, OnQueueEvent, OnWorkerEvent, QueueEventsListener, QueueEventsHost } from '@nestjs/bullmq';
-import { WorkerHost } from '@nestjs/bullmq';
 import { Test } from '@nestjs/testing';
 import { createId } from '@paralleldrive/cuid2';
-import { DateTime } from 'luxon';
 import { Job, Queue } from 'bullmq';
+import { DateTime } from 'luxon';
 import { GenericContainer, StartedTestContainer } from 'testcontainers';
 import stableStringify from 'safe-stable-stringify';
 

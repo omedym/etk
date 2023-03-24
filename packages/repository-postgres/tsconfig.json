@@ -1,0 +1,4 @@
+{
+  // This is required for VSCode Intellisense
+  "extends": "../../tsconfig.base.json"
+}

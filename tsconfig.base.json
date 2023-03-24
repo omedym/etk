@@ -28,7 +28,8 @@
     "noImplicitReturns": true,
     "paths": {
       "@omedym/*": ["dist/bin/node_modules/@omedym/*"],
-      "@omedym/nestjs-dmq-core": ["./packages/nestjs-dmq-core/src/index"],
+      "@omedym/nestjs-dmq-core": ["./packages/core/src/index"],
+      "@omedym/nestjs-dmq-repository-postgres": ["./packages/repository-postgres/src/index"],
     },
     // "compileOnSave": false,
   },
