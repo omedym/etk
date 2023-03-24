@@ -16,6 +16,16 @@ ts_config(
 )
 
 npm_link_package(
+  name = "node_modules/@omedym/nestjs-dmq-postgres-client",
+  src = "//packages/repository-postgres/prisma:js_client",
+)
+
+npm_link_package(
+  name = "node_modules/@omedym/nestjs-dmq-repository-postgres",
+  src = "//packages/repository-postgres:js",
+)
+
+npm_link_package(
   name = "node_modules/@omedym/nestjs-dmq-core",
   src = "//packages/core:js",
 )
@@ -60,6 +70,7 @@ filegroup(
     "//:node_modules/@bazel/runfiles",
     "//:node_modules/@nestjs/testing",
     "//:node_modules/@prisma/client",
+    "//:node_modules/@testcontainers/postgresql",
     "//:node_modules/@types/async-redis",
     "//:node_modules/async-redis",
     "//:node_modules/prisma",

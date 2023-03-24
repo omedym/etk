@@ -1,0 +1,76 @@
+load("@aspect_rules_js//npm:defs.bzl", "npm_package")
+load("@npm//:prisma/package_json.bzl", "bin")
+load("@aspect_bazel_lib//lib:copy_to_directory.bzl", "copy_to_directory")
+load("@aspect_bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
+
+package(default_visibility = ["//visibility:public"])
+
+copy_to_directory(
+  name = "prisma_engines",
+  srcs = ["//:node_modules/@prisma/engines"],
+  include_srcs_patterns = ["**/*.so.*", "**/*.dll.*", "**/*.dynlib.*",  "**/*.dylib.*"],
+  exclude_srcs_patterns = ["node_modules/.aspect_rules_js/**"],
+  replace_prefixes = {
+    "node_modules/@prisma/engines": ""
+  }
+)
+
+filegroup(
+  name = "prisma_schema_postgres",
+  srcs = ["schema.prisma"],
+  visibility = ["//visibility:public"],
+)
+
+# Generate a package.json at build time to formalize this directory as a valid NPM package
+genrule(
+  name = "package_json",
+  outs = ["package.json"],
+  cmd = """
+    echo "{
+      \\"name\\": \\"@omedym/nestjs-dmq-postgres-client\\",
+      \\"version\\": \\"0.1.0\\",
+      \\"main\\": \\"index.js\\",
+      \\"typings\\": \\"index.d.ts\\"
+    }" > $@
+  """,
+)
+
+bin.prisma(
+  name = "generate",
+  srcs = [
+    "package_json",
+    ":schema.prisma",
+    "//:node_modules/@prisma/client",
+    "//:node_modules/@prisma/engines",
+    "//:node_modules/@prisma/generator-helper",
+    "//:node_modules/typescript",
+
+    # Dev Dependencies
+    "//:node_modules/@types/node",
+  ],
+  args = [
+    "generate",
+    "--schema",
+    "schema.prisma",
+  ],
+  copy_srcs_to_bin = True,
+  outs= ["generated"],
+  chdir = package_name(),
+  env = {
+    "PRISMA_GENERATE_SKIP_AUTOINSTALL": "1",
+    "PRISMA_SKIP_POSTINSTALL_GENERATE": "1",
+    # This is to fool Prisma CLI that wants to copy something here we also inject the actual client package.json
+    "PRISMA_QUERY_ENGINE_LIBRARY": "./package.json",
+  }
+)
+
+npm_package(
+  name = "js_client",
+  srcs = [":prisma_engines", ":generate"],
+  exclude_srcs_patterns = [],
+  replace_prefixes = {
+    "prisma_engines": "",
+    "generated/client": ""
+  },
+  package = "@omedym/nestjs-dmq-postgres-client",
+)

@@ -1,0 +1,125 @@
+generator client {
+  binaryTargets = ["native", "debian-openssl-1.1.x"]
+  provider = "prisma-client-js"
+  output   = "./generated/client"
+  previewFeatures = ["multiSchema", "views"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL_POSTGRES")
+  schemas  = ["qmf"]
+}
+
+// TrackedQueue
+// ------------
+
+enum JobDataType {
+  command
+  event
+  message
+  query
+  task
+  unknown
+  @@schema("qmf")
+}
+
+enum JobEvent {
+  queueJobActive
+  queueJobAdded
+  queueCleaned
+  queueJobCompleted
+  queueJobDelayed
+  queueDrained
+  queueJobDuplicated
+  queueError
+  queueJobFailed
+  queuePaused
+  queueJobProgress
+  queueJobRemoved
+  queueResumed
+  queueJobRetriesExhausted
+  queueJobStalled
+  queueJobWaiting
+  queueJobWaitingChildren
+  workerJobActive
+  workerClosed
+  workerClosing
+  workerJobCompleted
+  workerDrained
+  workerError
+  workerJobFailed
+  workerPaused
+  workerJobProgress
+  workerReady
+  workerResumed
+  workerJobStalled
+  unknown
+  @@schema("qmf")
+}
+
+enum JobState {
+  active
+  added
+  completed
+  delayed
+  failed
+  stalled
+  waiting
+  waitingChilden
+  unknown
+  @@schema("qmf")
+}
+
+model TrackedQueueJob {
+  tenantId                  String              @db.VarChar(64)
+  queueGroupId              String?             @db.VarChar(64)
+  queueId                   String              @db.VarChar(64)
+  jobId                     String              @db.VarChar(64) @default(cuid())
+
+  state                     JobState            @default(unknown)
+  dataType                  JobDataType         @default(unknown)
+
+  dataId                    String?             @db.VarChar(64)
+  data                      Json?               @db.JsonB
+  metadata                  Json?               @db.JsonB
+  result                    Json?               @db.JsonB
+  log                       String[]            @db.Text
+
+  createdAt                 DateTime            @db.Timestamptz(6) @default(now())
+  updatedAt                 DateTime            @db.Timestamptz(6) @default(now()) @updatedAt
+
+  events                    TrackedQueueJobEvent[]
+
+  @@id([tenantId, jobId])
+  @@unique([jobId])
+
+  @@index([jobId])
+  @@index([tenantId, dataId, queueGroupId, queueId, jobId, updatedAt(sort: Desc), state])
+  @@index([tenantId, queueGroupId, queueId, jobId, updatedAt(sort: Desc), state])
+  @@map("trackedqueue_job")
+  @@schema("qmf")
+}
+
+model TrackedQueueJobEvent {
+  tenantId                  String              @db.VarChar(64)
+  jobId                     String              @db.VarChar(64)
+  jobEventId                String              @db.VarChar(64) @default(cuid())
+
+  event                     JobEvent            @default(unknown)
+  state                     JobState            @default(unknown)
+  statePrev                 JobState            @default(unknown)
+  metadata                  Json?               @db.JsonB
+  log                       String[]            @db.Text
+
+  createdAt                 DateTime            @db.Timestamptz(6) @default(now())
+
+  job                       TrackedQueueJob     @relation(fields: [tenantId, jobId], references: [tenantId, jobId])
+
+  @@id([tenantId, jobId, jobEventId])
+
+  @@index([jobId, createdAt(sort: Desc), state])
+  @@index([tenantId, jobId, createdAt(sort: Desc), state])
+  @@map("trackedqueue_job_event")
+  @@schema("qmf")
+}
