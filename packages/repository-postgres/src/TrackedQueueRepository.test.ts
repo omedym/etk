@@ -11,7 +11,7 @@ describe('TrackedQueueRepository', () => {
   let service: TrackedQueueRepository;
   let now: DateTime = DateTime.now();
 
-  describe('Module testing', () => {
+  describe('TrackedQueueRepository Module', () => {
     beforeEach(async () => {
       const module: TestingModule = await Test.createTestingModule({
         providers: [
@@ -31,7 +31,7 @@ describe('TrackedQueueRepository', () => {
     });
   });
 
-  describe('Service testing', () => {
+  describe('TrackedQueueRepository', () => {
     let SUT: TrackedQueueRepository;
 
     beforeEach(async () => {
@@ -40,11 +40,21 @@ describe('TrackedQueueRepository', () => {
       const prisma = {
         save: jest.fn(),
         trackedQueueJob: {
-          create: jest.fn().mockImplementation((jobToTrack: TrackJobParams) => {
+          create: jest.fn().mockImplementation((args: { data: TrackJobParams }) => {
+            const data = args.data;
             return {
-              ...jobToTrack.data,
+              ...data,
               createdAt: now.toJSDate(),
               updatedAt: now.toJSDate(),
+              events: [
+                {
+                  tenantId: data.tenantId,
+                  jobId: data.jobId,
+                  jobEventId: cuid.createId(),
+                  state: data.state,
+                  createdAt: now.toJSDate(),
+                },
+              ]
             }
           }),
         },
@@ -66,9 +76,6 @@ describe('TrackedQueueRepository', () => {
         dataType: 'message',
         dataId: cuid.createId(),
         data: testJobData,
-        metadata: undefined,
-        result: undefined,
-        log: null,
       };
 
       const result = await SUT.trackJob(jobToTrack);
@@ -78,6 +85,14 @@ describe('TrackedQueueRepository', () => {
         ...jobToTrack,
         createdAt: now.toJSDate(),
         updatedAt: now.toJSDate(),
+        events: [
+          {
+            tenantId: jobToTrack.tenantId,
+            jobId: jobToTrack.jobId,
+            state: jobToTrack.state,
+            createdAt: now.toJSDate(),
+          }
+        ]
       });
     });
   });

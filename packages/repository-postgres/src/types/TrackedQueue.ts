@@ -1,22 +1,36 @@
 import {
   JobState,
   JobDataType,
+  TrackedQueueJob,
 } from '@omedym/nestjs-dmq-postgres-client';
 
-export interface ITrackedQueueJob<T extends object> {
+export interface ITrackedQueueJob<T extends object = {}> {
   tenantId: string;
   queueGroupId: string | null;
   queueId: string;
   jobId: string;
   state: JobState;
   dataType: JobDataType
-  dataId: string | null;
+  dataId?: string;
   data: T;
-  metadata: any | null;
-  result: any | null;
-  log: any | null;
+  metadata?: any;
+  result?: any;
+  log?: any;
   createdAt: Date;
   updatedAt: Date;
+
+  events?: ITrackedQueueJobEvent<T>[];
+}
+
+export interface ITrackedQueueJobEvent<T extends object = {}> {
+  tenantId: string;
+  jobId: string;
+  jobEventId: string;
+  state: JobState;
+  event?: object;
+  createdAt: Date;
+
+  job?: ITrackedQueueJob<T>;
 }
 
 export type FindJobByIdParams = {
@@ -24,4 +38,5 @@ export type FindJobByIdParams = {
   jobId: string;
 }
 
-export type TrackJobParams<T extends object = {}> = Omit<ITrackedQueueJob<T>, 'createdAt'|'updatedAt'>;
+export type TrackJobParams<T extends object = {}> =
+  Omit<ITrackedQueueJob<T>, 'createdAt' | 'updatedAt' | 'events'>;
