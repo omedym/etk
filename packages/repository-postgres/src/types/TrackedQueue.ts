@@ -49,4 +49,5 @@ export type UpdateJobParams<T extends object = {}> =
   Omit<ITrackedQueueJobEvent<T>, 'createdAt' | 'jobEventId' | 'job'> & {
     jobEventId?: string,
     createdAt?: DateTime,
+    log?: string,
   }

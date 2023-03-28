@@ -7,7 +7,6 @@ import {
   FindJobByIdParams,
   TrackJobParams,
   ITrackedQueueJob,
-  ITrackedQueueJobEvent,
   UpdateJobParams as UpdateTrackedJobParams,
 } from './types';
 
@@ -52,26 +51,30 @@ export class TrackedQueueRepository {
   }
 
   async updateTrackedJob<T extends object>(jobUpdate: UpdateTrackedJobParams): Promise<ITrackedQueueJob<T>> {
-    const { tenantId, jobId, createdAt, ...eventData } = jobUpdate;
+    const { tenantId, jobId, createdAt, log, ...eventData } = jobUpdate;
     const timestampAt = createdAt ? createdAt : DateTime.now();
+
+    const jobDataToUpdate = {
+      state: eventData.state,
+      updatedAt: timestampAt.toJSDate(),
+      ...(log ? { log: [log] } : {}), // If provided update the log entry
+    }
+
+    const JobEventToCreate = {
+      ...eventData,
+      createdAt: timestampAt.toJSDate(),
+    }
 
     const trackedJob = await this.prisma.trackedQueueJob.update({
       data: {
-        state: eventData.state,
-        updatedAt: timestampAt.toJSDate(),
-        events: {
-          create: [{
-            ...eventData,
-            createdAt: timestampAt.toJSDate(),
-          }]
-        }
+        ...jobDataToUpdate,
+        events: { create: [{ ...JobEventToCreate }] },
       },
       include: {
-        events: true,
+        events: true
       },
       where: {
-        tenantId_jobId: { tenantId, jobId },
-      },
+        tenantId_jobId: { tenantId, jobId }},
     })
 
     return trackedJob as unknown as ITrackedQueueJob<T>;
