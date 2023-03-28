@@ -145,12 +145,14 @@ describe('TrackedQueueRepository', () => {
     jobId: string,
     state: JobState,
     event?: object,
+    log?: string,
   ): UpdateJobParams<T> => {
     return {
       tenantId: 'SYSTEM',
       jobId,
       state,
       event,
+      log,
     }
   }
 
@@ -195,8 +197,6 @@ describe('TrackedQueueRepository', () => {
 
       const result = await SUT.updateTrackedJob(eventThatOccurred);
 
-      console.debug(JSON.stringify(result, null, 2));
-
       expect(result).toBeDefined();
       expect(result.state).toEqual(eventThatOccurred.state);
       expect(result?.events?.length).toEqual(2);
@@ -238,6 +238,39 @@ describe('TrackedQueueRepository', () => {
       expect(result).toBeDefined();
       expect(result?.events?.length).toEqual(7);
       expect(result?.state).toEqual('completed');
+    });
+
+    it(`can have its log updated`, async () => {
+      type TestJobData = { id: string; };
+      const testJobData = { id: createId() };
+
+      const jobToTrack: TrackJobParams<TestJobData> = createJobToTrackJson(testJobData);
+      const trackedJob = await SUT.trackJob(jobToTrack);
+
+      let log: string = '';
+
+      log = log + `${DateTime.now().toISO()} Job Updated To Active\n`;
+      await SUT.updateTrackedJob(createUpdateJobJson(trackedJob.jobId, 'active',    { jobStep: 2 }, log));
+
+      log = log + `${DateTime.now().toISO()} Job Updated To Delayed\n`;
+      await SUT.updateTrackedJob(createUpdateJobJson(trackedJob.jobId, 'delayed',   { jobStep: 3 }, log));
+
+      log = log + `${DateTime.now().toISO()} Job Updated To Active\n`;
+      await SUT.updateTrackedJob(createUpdateJobJson(trackedJob.jobId, 'active',    { jobStep: 4 }, log));
+
+      log = log + `${DateTime.now().toISO()} Job Updated To Completed\n`;
+      await SUT.updateTrackedJob(createUpdateJobJson(trackedJob.jobId, 'completed', { jobStep: 5 }, log));
+
+      const result = await SUT.findJobById<ITrackedQueueJob<TestJobData>>(
+        { tenantId: trackedJob.tenantId, jobId: trackedJob.jobId }
+      );
+
+      console.debug(JSON.stringify(result, null, 2));
+
+      expect(result).toBeDefined();
+      expect(result?.events?.length).toEqual(5);
+      expect(result?.state).toEqual('completed');
+      expect(result?.log).toEqual(log);
     });
   });
 })
