@@ -8,7 +8,7 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL_POSTGRES")
-  schemas  = ["qmf"]
+  schemas  = ["dmq"]
 }
 
 // TrackedQueue
@@ -21,7 +21,7 @@ enum JobDataType {
   query
   task
   unknown
-  @@schema("qmf")
+  @@schema("dmq")
 }
 
 enum JobEvent {
@@ -55,7 +55,7 @@ enum JobEvent {
   workerResumed
   workerJobStalled
   unknown
-  @@schema("qmf")
+  @@schema("dmq")
 }
 
 enum JobState {
@@ -68,7 +68,7 @@ enum JobState {
   waiting
   waitingChilden
   unknown
-  @@schema("qmf")
+  @@schema("dmq")
 }
 
 model TrackedQueueJob {
@@ -98,7 +98,7 @@ model TrackedQueueJob {
   @@index([tenantId, dataId, queueGroupId, queueId, jobId, updatedAt(sort: Desc), state])
   @@index([tenantId, queueGroupId, queueId, jobId, updatedAt(sort: Desc), state])
   @@map("trackedqueue_job")
-  @@schema("qmf")
+  @@schema("dmq")
 }
 
 model TrackedQueueJobEvent {
@@ -121,5 +121,5 @@ model TrackedQueueJobEvent {
   @@index([jobId, createdAt(sort: Desc), state])
   @@index([tenantId, jobId, createdAt(sort: Desc), state])
   @@map("trackedqueue_job_event")
-  @@schema("qmf")
+  @@schema("dmq")
 }
