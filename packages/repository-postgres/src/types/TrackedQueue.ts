@@ -1,3 +1,4 @@
+import { DateTime } from 'luxon';
 import {
   JobState,
   JobDataType,
@@ -39,4 +40,13 @@ export type FindJobByIdParams = {
 }
 
 export type TrackJobParams<T extends object = {}> =
-  Omit<ITrackedQueueJob<T>, 'createdAt' | 'updatedAt' | 'events'>;
+  Omit<ITrackedQueueJob<T>, 'createdAt' | 'jobId' | 'updatedAt' | 'events'> & {
+    jobId?: string,
+    createdAt?: DateTime,
+  }
+
+export type UpdateJobParams<T extends object = {}> =
+  Omit<ITrackedQueueJobEvent<T>, 'createdAt' | 'jobEventId' | 'job'> & {
+    jobEventId?: string,
+    createdAt?: DateTime,
+  }
