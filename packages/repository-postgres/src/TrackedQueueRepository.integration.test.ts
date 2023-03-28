@@ -6,11 +6,11 @@ import { PostgreSqlContainer, StartedPostgreSqlContainer } from '@testcontainers
 import { DateTime } from 'luxon';
 import { exec } from "node:child_process";
 import { promisify } from "node:util";
-import { StartedTestContainer } from 'testcontainers';
 
 import { TrackedQueueRepository } from './TrackedQueueRepository';
 import { RepositoryPostgresModule } from './repository-postgres.module';
-import { TrackJobParams } from './types';
+import { ITrackedQueueJob, TrackJobParams, UpdateJobParams } from './types';
+import { JobState } from '.';
 
 
 const TestConfig = {
@@ -112,10 +112,10 @@ describe('TrackedQueueRepository', () => {
     await app.init();
   }, 120000);
 
-  // beforeEach(() => {
-  //   jest.resetModules();
-  //   process.env = { ...env, DATABASE_URL_POSTGRES };
-  // });
+  beforeEach(() => {
+    jest.resetModules();
+    // process.env = { ...env, DATABASE_URL_POSTGRES };
+  });
 
   // afterEach(() => {
   //   process.env = env;
@@ -126,22 +126,40 @@ describe('TrackedQueueRepository', () => {
     await container?.stop();
   });
 
+  const createJobToTrackJson = <T extends { id: string; }>(
+    jobData: T,
+  ): TrackJobParams<T> => {
+    return {
+      tenantId: 'SYSTEM',
+      queueGroupId: 'queueGroupId',
+      queueId: 'queueId',
+      jobId: createId(),
+      state: 'waiting',
+      dataType: 'message',
+      dataId: jobData.id,
+      data: jobData,
+    };
+  }
+
+  const createUpdateJobJson = <T extends { id: string; }>(
+    jobId: string,
+    state: JobState,
+    event?: object,
+  ): UpdateJobParams<T> => {
+    return {
+      tenantId: 'SYSTEM',
+      jobId,
+      state,
+      event,
+    }
+  }
+
   describe('jobToTrack', () => {
     it('can be added to be tracked and has first event', async () => {
       type TestJobData = { id: string; };
       const testJobData = { id: createId() };
 
-      const jobToTrack: TrackJobParams<TestJobData> = {
-        tenantId: 'SYSTEM',
-        queueGroupId: 'groupId',
-        queueId: 'queueId',
-        jobId: createId(),
-        state: 'waiting',
-        dataType: 'message',
-        dataId: testJobData.id,
-        data: testJobData,
-      };
-
+      const jobToTrack: TrackJobParams<TestJobData> = createJobToTrackJson(testJobData);
       const result = await SUT.trackJob(jobToTrack);
 
       expect(result).toBeDefined();
@@ -158,6 +176,68 @@ describe('TrackedQueueRepository', () => {
 
       expect(result.createdAt).toEqual(result.updatedAt);
       expect(result.events![0].createdAt).toEqual(result.createdAt);
+    });
+
+    it(`can be updated by additional events`, async () => {
+      type TestJobData = { id: string; };
+      const testJobData = { id: createId() };
+
+      const jobToTrack: TrackJobParams<TestJobData> = createJobToTrackJson(testJobData);
+      const trackedJob = await SUT.trackJob(jobToTrack);
+
+      const eventThatOccurred: UpdateJobParams<TestJobData> = {
+        tenantId: trackedJob.tenantId,
+        jobId: trackedJob.jobId,
+        jobEventId: createId(),
+        state: 'completed',
+        event: { prev: trackedJob.state },
+      }
+
+      const result = await SUT.updateTrackedJob(eventThatOccurred);
+
+      console.debug(JSON.stringify(result, null, 2));
+
+      expect(result).toBeDefined();
+      expect(result.state).toEqual(eventThatOccurred.state);
+      expect(result?.events?.length).toEqual(2);
+      expect(result.events![0]).toMatchObject({ ...eventThatOccurred });
+    });
+
+    it(`will be updated based on latest event update`, async () => {
+      type TestJobData = { id: string; };
+      const testJobData = { id: createId() };
+
+      const jobToTrack: TrackJobParams<TestJobData> = createJobToTrackJson(testJobData);
+      const trackedJob = await SUT.trackJob(jobToTrack);
+
+      const result = await SUT.updateTrackedJob(createUpdateJobJson(trackedJob.jobId, 'completed', { jobStep: 1 }));
+
+      expect(result).toBeDefined();
+      expect(result?.events?.length).toEqual(2);
+      expect(result.state).toEqual('completed');
+    });
+
+    it(`can be fetched along with event history`, async () => {
+      type TestJobData = { id: string; };
+      const testJobData = { id: createId() };
+
+      const jobToTrack: TrackJobParams<TestJobData> = createJobToTrackJson(testJobData);
+      const trackedJob = await SUT.trackJob(jobToTrack);
+
+      await SUT.updateTrackedJob(createUpdateJobJson(trackedJob.jobId, 'active',    { jobStep: 2 }));
+      await SUT.updateTrackedJob(createUpdateJobJson(trackedJob.jobId, 'delayed',   { jobStep: 3 }));
+      await SUT.updateTrackedJob(createUpdateJobJson(trackedJob.jobId, 'active',    { jobStep: 4 }));
+      await SUT.updateTrackedJob(createUpdateJobJson(trackedJob.jobId, 'failed',    { jobStep: 5 }));
+      await SUT.updateTrackedJob(createUpdateJobJson(trackedJob.jobId, 'active',    { jobStep: 6 }));
+      await SUT.updateTrackedJob(createUpdateJobJson(trackedJob.jobId, 'completed', { jobStep: 7 }));
+
+      const result = await SUT.findJobById<ITrackedQueueJob<TestJobData>>(
+        { tenantId: trackedJob.tenantId, jobId: trackedJob.jobId }
+      );
+
+      expect(result).toBeDefined();
+      expect(result?.events?.length).toEqual(7);
+      expect(result?.state).toEqual('completed');
     });
   });
 })
