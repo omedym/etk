@@ -5,7 +5,9 @@ import { createId } from '@paralleldrive/cuid2';
 import { Job, Queue } from 'bullmq';
 import { DateTime } from 'luxon';
 import { GenericContainer, StartedTestContainer } from 'testcontainers';
-import stableStringify from 'safe-stable-stringify';
+
+// import sentryTestkit from 'sentry-testkit';
+// const { testkit, sentryTransport } = sentryTestkit();
 
 const TestConfig = {
   redis: {
@@ -18,12 +20,16 @@ const TestConfig = {
     delayMs: process.env.TESTCONFIG__BULLMQ__DELAY_MS
       ? Number(process.env.TESTCONFIG__BULLMQ__DELAY_MS) : 1000,
     showLogs: process.env.TESTCONFIG__BULLMQ__SHOWLOGS
-    ? Boolean(process.env.TESTCONFIG__BULLMQ__SHOWLOGS) : false,
+      ? Boolean(process.env.TESTCONFIG__BULLMQ__SHOWLOGS) : false,
   },
   jest: {
     timeoutMs: process.env.TESTCONFIG__JEST__TIMEOUT_MS
       ? Number(process.env.TESTCONFIG__JEST__TIMEOUT_MS) : 10000,
   },
+  sentry: {
+    dsn: process.env.SENTRY_DSN
+      ? process.env.SENTRY_DSN : undefined,
+  }
 };
 
 /**
@@ -99,14 +105,17 @@ class QueueListener extends QueueEventsHost {
   _onResumed() { this.log(`Queue Resumed`) };
 
   @OnQueueEvent('added')
+  // @Transaction('onQueueEvent-added')
   onAdded(event: { jobId: string, name: string }, id: string) { this._onAdded(event.jobId, event.name) }
 
   @OnQueueEvent('completed')
+  // @Transaction('onQueueEvent-completed')
   onCompleted(event: { jobId: string, returnvalue: string, prev?: string}, id: string) {
     this._onCompleted(event.jobId, event.returnvalue);
   }
 
   @OnQueueEvent('delayed')
+  // @Transaction('onQueueEvent-delayed')
   onDelayed(event: { jobId: string, delay: number }, id: string) { this._onDelayed(event.jobId, event.delay) }
 
   @OnQueueEvent('error')
@@ -228,6 +237,7 @@ describe('BullMQ Processor', () => {
       imports: [
         BullModule.forRoot({ connection: redisConnectionOptions }),
         BullModule.registerQueue({ name: QUEUE_NAME }),
+        // SentryModule,
       ],
       providers: [ ExternalService, TestProcessor, TestQueue, TestQueueListener ],
     }).compile();
@@ -239,12 +249,25 @@ describe('BullMQ Processor', () => {
     externalService = moduleRef.get<ExternalService>(ExternalService);
     producer = moduleRef.get<TestQueue>(TestQueue);
 
+    // app.get<SentryService>(SentryService).initSentryWithApp(app, {
+    //   tags: {
+    //     service: 'nestjs-dmq',
+    //   },
+    //   debug: false,
+    //   transport: sentryTransport,
+    //   dsn: TestConfig.sentry.dsn,
+    // });
     await app.init();
     await processor.worker.waitUntilReady();
     await listener.queueEvents.waitUntilReady();
+
   });
 
-  afterEach(async () => { await app.close(); })
+  afterEach(async () => {
+    await app.close();
+    // testkit.reset();
+  });
+
   afterAll(async () => { await container.stop(); })
 
   describe('event', () => {
@@ -264,6 +287,10 @@ describe('BullMQ Processor', () => {
       expect(spies.queue.onCompleted).toHaveBeenCalledTimes(1);
 
       expect(listener.logs).toContain('[002] Job 1 Completed: done');
+
+      // const sentryTransactions = testkit.transactions();
+      // const numberOfJobsAdded = 1;
+      // expect(sentryTransactions).toHaveLength(numberOfJobsAdded);
     });
 
     it('can inject job handler', async () => {
@@ -288,6 +315,10 @@ describe('BullMQ Processor', () => {
 
       expect(listener.logs).toContain('[002] Job 1 Completed: done');
       expect(spies.console.info).toHaveBeenCalledWith(`Job 1 Processing: ${cuid}`);
+
+      // const sentryTransactions = testkit.transactions();
+      // const numberOfJobsAdded = 2;
+      // expect(sentryTransactions).toHaveLength(numberOfJobsAdded);
     });
 
     it('can delay a job', async () => {
@@ -322,6 +353,10 @@ describe('BullMQ Processor', () => {
       expect(listener.logs).toContain(`[001] Job 1 Added: ${cuid}`);
       expect(listener.logs).toContain('[004] Job 1 Completed: done');
       expect(spies.console.info).toHaveBeenCalledWith(`Job 1 Processing: ${cuid}`);
+
+      // const sentryTransactions = testkit.transactions();
+      // const numberOfJobsAdded = 4;
+      // expect(sentryTransactions).toHaveLength(numberOfJobsAdded);
     });
 
     it('long delayed job remains in queue', async () => {
@@ -361,6 +396,10 @@ describe('BullMQ Processor', () => {
       // console.warn(`delayedJob.state`, { state: stableStringify(jobState, null, 2) });
 
       // expect(DateTime.fromMillis(job.timestamp).toISO()).toEqual(delay.toISO());
+
+      // const sentryTransactions = testkit.transactions();
+      // const numberOfJobsAdded = 3;
+      // expect(sentryTransactions).toHaveLength(numberOfJobsAdded);
     });
   });
 
@@ -405,5 +444,9 @@ describe('BullMQ Processor', () => {
     expect(listener.logs).toContain(`[001] Job 1 Added: ${cuid}`);
     expect(listener.logs).toContain('[004] Job 1 Completed: done');
     expect(spies.console.info).toHaveBeenCalledWith(`Job 1 Processing: ${cuid}`);
+
+    // const sentryTransactions = testkit.transactions();
+    // const numberOfJobsAdded = 4;
+    // expect(sentryTransactions).toHaveLength(numberOfJobsAdded);
   });
 });
