@@ -2,6 +2,8 @@ import { WorkerHost, OnWorkerEvent } from '@nestjs/bullmq';
 import { Inject, Injectable } from '@nestjs/common';
 import { Job } from 'bullmq';
 
+import { TrackedQueueRepository } from '@omedym/nestjs-dmq-repository-postgres';
+
 import { Providers } from '../providers';
 import { ILogger } from '../telemetry';
 
@@ -9,6 +11,7 @@ import { ILogger } from '../telemetry';
 export abstract class TrackedProcessor extends WorkerHost {
 
   constructor(
+    readonly trackedQueueRepository: TrackedQueueRepository,
     @Inject(Providers.ILogger) readonly logger: ILogger,
   ) {
     super();

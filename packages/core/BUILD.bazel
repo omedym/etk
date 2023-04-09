@@ -24,6 +24,8 @@ _DEPS = [
   "//:node_modules/safe-stable-stringify",
   "//:node_modules/ts-pattern",
 
+  "//:node_modules/@omedym/nestjs-dmq-repository-postgres",
+
   # Dev Dependencies
   "//:node_modules/@types/luxon",
   "//:node_modules/@types/node",

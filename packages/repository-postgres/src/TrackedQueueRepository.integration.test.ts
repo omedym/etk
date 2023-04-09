@@ -4,14 +4,13 @@ import { Test } from '@nestjs/testing';
 import { createId } from '@paralleldrive/cuid2';
 import { PostgreSqlContainer, StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import { DateTime } from 'luxon';
-import { exec } from "node:child_process";
-import { promisify } from "node:util";
+import { exec } from 'node:child_process';
+import { promisify } from 'node:util';
 
+import { JobState } from '.';
 import { TrackedQueueRepository } from './TrackedQueueRepository';
 import { RepositoryPostgresModule } from './repository-postgres.module';
-import { ITrackedQueueJob, TrackJobParams, UpdateJobParams } from './types';
-import { JobState } from '.';
-
+import { CreateTrackedJobParams, UpdateTrackedJobParams, ITrackedQueueJob } from './types';
 
 const TestConfig = {
   postgres: {
@@ -128,7 +127,7 @@ describe('TrackedQueueRepository', () => {
 
   const createJobToTrackJson = <T extends { id: string; }>(
     jobData: T,
-  ): TrackJobParams<T> => {
+  ): CreateTrackedJobParams<T> => {
     return {
       tenantId: 'SYSTEM',
       queueGroupId: 'queueGroupId',
@@ -146,12 +145,12 @@ describe('TrackedQueueRepository', () => {
     state: JobState,
     event?: object,
     log?: string,
-  ): UpdateJobParams<T> => {
+  ): UpdateTrackedJobParams<T> => {
     return {
       tenantId: 'SYSTEM',
       jobId,
       state,
-      event,
+      // event,
       log,
     }
   }
@@ -161,7 +160,7 @@ describe('TrackedQueueRepository', () => {
       type TestJobData = { id: string; };
       const testJobData = { id: createId() };
 
-      const jobToTrack: TrackJobParams<TestJobData> = createJobToTrackJson(testJobData);
+      const jobToTrack: CreateTrackedJobParams<TestJobData> = createJobToTrackJson(testJobData);
       const result = await SUT.trackJob(jobToTrack);
 
       expect(result).toBeDefined();
@@ -184,15 +183,15 @@ describe('TrackedQueueRepository', () => {
       type TestJobData = { id: string; };
       const testJobData = { id: createId() };
 
-      const jobToTrack: TrackJobParams<TestJobData> = createJobToTrackJson(testJobData);
+      const jobToTrack: CreateTrackedJobParams<TestJobData> = createJobToTrackJson(testJobData);
       const trackedJob = await SUT.trackJob(jobToTrack);
 
-      const eventThatOccurred: UpdateJobParams<TestJobData> = {
+      const eventThatOccurred: UpdateTrackedJobParams<TestJobData> = {
         tenantId: trackedJob.tenantId,
         jobId: trackedJob.jobId,
         jobEventId: createId(),
         state: 'completed',
-        event: { prev: trackedJob.state },
+        // event: { prev: trackedJob.state },
       }
 
       const result = await SUT.updateTrackedJob(eventThatOccurred);
@@ -207,7 +206,7 @@ describe('TrackedQueueRepository', () => {
       type TestJobData = { id: string; };
       const testJobData = { id: createId() };
 
-      const jobToTrack: TrackJobParams<TestJobData> = createJobToTrackJson(testJobData);
+      const jobToTrack: CreateTrackedJobParams<TestJobData> = createJobToTrackJson(testJobData);
       const trackedJob = await SUT.trackJob(jobToTrack);
 
       const result = await SUT.updateTrackedJob(createUpdateJobJson(trackedJob.jobId, 'completed', { jobStep: 1 }));
@@ -221,7 +220,7 @@ describe('TrackedQueueRepository', () => {
       type TestJobData = { id: string; };
       const testJobData = { id: createId() };
 
-      const jobToTrack: TrackJobParams<TestJobData> = createJobToTrackJson(testJobData);
+      const jobToTrack: CreateTrackedJobParams<TestJobData> = createJobToTrackJson(testJobData);
       const trackedJob = await SUT.trackJob(jobToTrack);
 
       await SUT.updateTrackedJob(createUpdateJobJson(trackedJob.jobId, 'active',    { jobStep: 2 }));
@@ -244,7 +243,7 @@ describe('TrackedQueueRepository', () => {
       type TestJobData = { id: string; };
       const testJobData = { id: createId() };
 
-      const jobToTrack: TrackJobParams<TestJobData> = createJobToTrackJson(testJobData);
+      const jobToTrack: CreateTrackedJobParams<TestJobData> = createJobToTrackJson(testJobData);
       const trackedJob = await SUT.trackJob(jobToTrack);
 
       let log: string = '';
