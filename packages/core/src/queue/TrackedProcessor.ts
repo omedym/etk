@@ -25,8 +25,44 @@ export abstract class TrackedProcessor extends WorkerHost {
     await this.worker.pause();
   }
 
+  @OnWorkerEvent('active')
+  async onActive(job: Job<any, any, string>, prev: string) {
+    this.logger.debug(`Job ${job.id} Active: ${JSON.stringify(job)}`);
+
+    const trackedJob = await this.trackedQueueRepository.trackJob({
+      tenantId: job?.data?.tenantid,
+      queueGroupId: 'queueGroupId',
+      queueId: 'queueId',
+      jobId: job.id,
+      state: 'waiting',
+      dataType: 'message',
+      dataId: job?.data?.id,
+      data: job?.data,
+    });
+
+    const updatedTrackedJob = await this.trackedQueueRepository.updateTrackedJob({
+      tenantId: job?.data?.tenantid,
+      jobId: job.id!,
+      state: 'active',
+      // event: { prev: "prev" }
+    });
+
+    // this.logger.debug(JSON.stringify(updatedTrackedJob, null, 2));
+  }
+
   @OnWorkerEvent('completed')
-  onCompleted(job: Job<any, any, string>) {
+  async onCompleted(job: Job<any, any, string>) {
     this.logger.debug(`Job ${job.id} Completed: ${JSON.stringify(job)}`);
+
+    // const result = await this.trackedQueueRepository.findJobById({ tenantId: job?.data?.tenantid || '!!' , jobId: job?.data?.tenantid || '!!'});
+    // console.warn(JSON.stringify(result, null, 2));
+    // this.logger.warn(JSON.stringify(result, null, 2))
+
+    // const updatedTrackedJob = await this.trackedQueueRepository.updateTrackedJob({
+    //   tenantId: job?.data?.tenantid || '!!',
+    //   jobId: job?.id || '!!',
+    //   state: 'completed',
+    //   event: { prev: 'active'}
+    // });
   }
 }
