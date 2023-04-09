@@ -5,6 +5,8 @@ import { createId } from '@paralleldrive/cuid2';
 import { Queue } from 'bullmq';
 import { GenericContainer, StartedTestContainer } from 'testcontainers';
 
+import { ILogger } from '../telemetry';
+import { Providers } from '../providers';
 import { TrackedProcessor } from './TrackedProcessor';
 
 const TestConfig = {
@@ -25,6 +27,16 @@ const TestConfig = {
       ? Number(process.env.TESTCONFIG__JEST__TIMEOUT_MS) : 10000,
   },
 };
+
+const mockLogger = {
+  info: jest.fn(),
+  requestLogger: jest.fn(),
+  matchFilePartRegEx: jest.fn(),
+  log: jest.fn(),
+  warn: jest.fn(),
+  error: jest.fn(),
+  debug: jest.fn(),
+} as unknown as ILogger;
 
 /** Monitor A BullMQ Queue Using BullMQ Queue Events */
 class QueueListener extends QueueEventsHost {
@@ -85,7 +97,7 @@ describe('TrackedProcessor', () => {
 
     return {
       console: {
-        info: jest.spyOn(global.console, 'info'),
+        info: jest.spyOn(mockLogger, 'info'),
       },
       queue: {
         onLog: jest.spyOn(target.queueListener, 'log'),
@@ -129,7 +141,12 @@ describe('TrackedProcessor', () => {
         BullModule.forRoot({ connection: redisConnectionOptions }),
         BullModule.registerQueue({ name: QUEUE_NAME }),
       ],
-      providers: [ TestQueue, TestQueueListener, TestTrackedProcessor ],
+      providers: [
+        TestQueue,
+        TestQueueListener,
+        TestTrackedProcessor,
+        { provide: Providers.ILogger, useValue: mockLogger },
+      ],
     }).compile();
 
     app = moduleRef.createNestApplication();
@@ -153,7 +170,7 @@ describe('TrackedProcessor', () => {
 
     it('CANNOT receive event: paused', async () => {
       const spies = insertQueueSpies();
-      const onPaused = jest.spyOn(listener, '_onPaused');
+      // const onPaused = jest.spyOn(listener, '_onPaused');
       await processor.worker.pause(true);
 
       expect(processor.worker.isPaused()).toBe(true);
