@@ -4,8 +4,7 @@ import { DateTime } from 'luxon';
 
 import { PostgresProviders, PrismaPostgresService } from '.';
 import { TrackedQueueRepository } from './TrackedQueueRepository';
-import { TrackJobParams } from './types';
-
+import { CreateTrackedJobParams } from './types';
 
 describe('TrackedQueueRepository', () => {
   let service: TrackedQueueRepository;
@@ -40,7 +39,7 @@ describe('TrackedQueueRepository', () => {
       const prisma = {
         save: jest.fn(),
         trackedQueueJob: {
-          create: jest.fn().mockImplementation((args: { data: TrackJobParams }) => {
+          create: jest.fn().mockImplementation((args: { data: CreateTrackedJobParams }) => {
             const data = args.data;
             return {
               ...data,
@@ -67,7 +66,7 @@ describe('TrackedQueueRepository', () => {
       type TestJobData = { id: string; };
       const testJobData = { id: cuid.createId() };
 
-      const jobToTrack: TrackJobParams<TestJobData> = {
+      const jobToTrack: CreateTrackedJobParams<TestJobData> = {
         tenantId: 'SYSTEM',
         queueGroupId: 'groupId',
         queueId: 'queueId',

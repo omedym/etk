@@ -1,13 +1,13 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { createId } from '@paralleldrive/cuid2';
 import { DateTime } from 'luxon';
-import { providers } from './providers';
+import { providers } from'./providers';
 import { PrismaService } from './prisma.service';
 import {
   FindJobByIdParams,
-  TrackJobParams,
+  CreateTrackedJobParams,
   ITrackedQueueJob,
-  UpdateJobParams as UpdateTrackedJobParams,
+  UpdateTrackedJobParams as UpdateTrackedJobParams,
 } from './types';
 
 @Injectable()
@@ -24,20 +24,21 @@ export class TrackedQueueRepository {
       }
     })) ;
 
-    return job as unknown as ITrackedQueueJob<T>;
+    return job as ITrackedQueueJob<T>;
   }
 
-  async trackJob<T extends object>(jobToTrack: TrackJobParams<T>): Promise<ITrackedQueueJob<T>> {
-    const timestampAt = jobToTrack.createdAt ? jobToTrack.createdAt : DateTime.now();
+  async trackJob<T extends object>(jobToTrack: CreateTrackedJobParams<T>): Promise<ITrackedQueueJob<T>> {
+    const { createdAt, ...eventData } = jobToTrack;
+    const timestampAt = createdAt && createdAt.isValid ? createdAt : DateTime.now();
     const trackedJob = await this.prisma.trackedQueueJob.create({
       data: {
-        ...jobToTrack,
+        ...eventData,
         createdAt: timestampAt.toJSDate(),
         updatedAt: timestampAt.toJSDate(),
 
         events: {
           create: [{
-            state: jobToTrack.state,
+            state: eventData.state,
             createdAt: timestampAt.toJSDate(),
           }],
         },
@@ -47,17 +48,17 @@ export class TrackedQueueRepository {
       }
     });
 
-    return trackedJob as unknown as ITrackedQueueJob<T>;
+    return trackedJob as ITrackedQueueJob<T>;
   }
 
-  async updateTrackedJob<T extends object>(jobUpdate: UpdateTrackedJobParams): Promise<ITrackedQueueJob<T>> {
-    const { tenantId, jobId, createdAt, log, ...eventData } = jobUpdate;
-    const timestampAt = createdAt ? createdAt : DateTime.now();
+  async updateTrackedJob<T extends object>(jobToUpdate: UpdateTrackedJobParams): Promise<ITrackedQueueJob<T>> {
+    const { tenantId, jobId, createdAt, log, ...eventData } = jobToUpdate;
+    const timestampAt = createdAt && createdAt.isValid ? createdAt : DateTime.now();
 
     const jobDataToUpdate = {
       state: eventData.state,
       updatedAt: timestampAt.toJSDate(),
-      ...(log ? { log: [log] } : {}), // If provided update the log entry
+      ...(log ? { log } : {}), // If provided update the log entry
     }
 
     const JobEventToCreate = {
@@ -77,6 +78,6 @@ export class TrackedQueueRepository {
         tenantId_jobId: { tenantId, jobId }},
     })
 
-    return trackedJob as unknown as ITrackedQueueJob<T>;
+    return trackedJob as ITrackedQueueJob<T>;
   };
 }

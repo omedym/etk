@@ -1,32 +1,54 @@
+import { Runfiles } from '@bazel/runfiles';
 import { InjectQueue, BullModule, Processor, OnQueueEvent, QueueEventsListener, QueueEventsHost } from '@nestjs/bullmq';
 import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { createId } from '@paralleldrive/cuid2';
+import { PostgreSqlContainer, StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import { Queue } from 'bullmq';
+import { DateTime } from 'luxon';
 import { GenericContainer, StartedTestContainer } from 'testcontainers';
+import { exec } from "node:child_process";
+import { promisify } from "node:util";
+
+import { RepositoryPostgresModule, TrackedQueueRepository } from '@omedym/nestjs-dmq-repository-postgres';
 
 import { ILogger } from '../telemetry';
 import { Providers } from '../providers';
 import { TrackedProcessor } from './TrackedProcessor';
 
+
 const TestConfig = {
+  postgres: {
+    port: process.env.TESTCONFIG__POSTGRES__PORT
+      ? Number(process.env.TESTCONFIG__POSTGRES__PORT) : 5432,
+    startupMs: process.env.TESTCONFIG__POSTGRES__STARTUP_MS
+      ? Number(process.env.TESTCONFIG__POSTGRES__STARTUP_MS) : 1000 * 60,
+    schema: 'tenant',
+    userName: process.env.TESTCONFIG__POSTGRES__USER_NAME
+      ? process.env.TESTCONFIG__POSTGRES__USER_NAME : 'postgres',
+    userPassword: process.env.TESTCONFIG__POSTGRES__USER_PASSWORD
+      ? process.env.TESTCONFIG__POSTGRES__USER_PASSWORD : 'postgres',
+  },
   redis: {
     port: process.env.TESTCONFIG__REDIS__PORT
       ? Number(process.env.TESTCONFIG__REDIS__PORT) : 6379,
     startupMs: process.env.TESTCONFIG__REDIS__STARTUP_MS
-      ? Number(process.env.TESTCONFIG__REDIS__STARTUP_MS) : 15000,
+      ? Number(process.env.TESTCONFIG__REDIS__STARTUP_MS) : 1000 * 15,
   },
   bullMq: {
     delayMs: process.env.TESTCONFIG__BULLMQ__DELAY_MS
-      ? Number(process.env.TESTCONFIG__BULLMQ__DELAY_MS) : 1000,
+      ? Number(process.env.TESTCONFIG__BULLMQ__DELAY_MS) : 1000 * 1,
     showLogs: process.env.TESTCONFIG__BULLMQ__SHOWLOGS
     ? Boolean(process.env.TESTCONFIG__BULLMQ__SHOWLOGS) : false,
   },
   jest: {
     timeoutMs: process.env.TESTCONFIG__JEST__TIMEOUT_MS
-      ? Number(process.env.TESTCONFIG__JEST__TIMEOUT_MS) : 10000,
+      ? Number(process.env.TESTCONFIG__JEST__TIMEOUT_MS) : 1000 * 10,
   },
 };
+
+const runfiles = new Runfiles(process.env);
+const execAsync = promisify(exec);
 
 const mockLogger = {
   info: jest.fn(),
@@ -83,10 +105,17 @@ describe('TrackedProcessor', () => {
   let testNum = 0;
 
   let app: INestApplication;
-  let container: StartedTestContainer;
+  let postgres: StartedPostgreSqlContainer;
+  let redis: StartedTestContainer;
+
   let listener: QueueListener;
-  let processor: TrackedProcessor;
   let producer: { queue: Queue };
+
+  let DATABASE_URL_POSTGRES: string;
+  let processor: TrackedProcessor;
+
+  const env = process.env;
+  process.env = { ...env };
 
   const insertQueueSpies = (options?: {
     queueListener?: QueueListener;
@@ -111,18 +140,50 @@ describe('TrackedProcessor', () => {
   }};
 
   beforeAll(async ()  => {
-    container = await new GenericContainer('redis')
+    const postgresDbName = `test-${DateTime.now().toISO()}`;
+    const postgresDbSchema = TestConfig.postgres.schema;
+
+    postgres = await new PostgreSqlContainer('postgres')
+      .withDatabase(postgresDbName)
+      .withExposedPorts(TestConfig.postgres.port)
+      .withPassword(TestConfig.postgres.userPassword)
+      .withStartupTimeout(TestConfig.postgres.startupMs)
+      .withUsername(TestConfig.postgres.userName)
+      .start();
+
+    redis = await new GenericContainer('redis')
       .withExposedPorts(TestConfig.redis.port)
       .withStartupTimeout(TestConfig.redis.startupMs)
       .start();
+
+    const postgresHost = postgres.getHost();
+    const postgresPort = postgres.getMappedPort(TestConfig.postgres.port);
+
+    const prismaSchemaPath = runfiles.resolveWorkspaceRelative('packages/repository-postgres/prisma');
+    const prismaSchemaFile = `${prismaSchemaPath}/schema.prisma`;
+
+    DATABASE_URL_POSTGRES = `postgresql://postgres`
+    + `:postgres@${postgresHost}:${postgresPort}`
+    + `/${postgresDbName}?schema=${postgresDbSchema}`;
+
+    const PRISMA_QUERY_ENGINE_LIBRARY = `${prismaSchemaPath}`;
+
+    const pushSchemaResult = await execAsync(
+      `npx prisma db push --schema "${prismaSchemaFile}" --skip-generate`,
+      { env: { ...env, DATABASE_URL_POSTGRES, PRISMA_QUERY_ENGINE_LIBRARY }},
+    );
+
+    console.warn(`execAsync.stdout: ${pushSchemaResult?.stdout}`);
   });
 
   beforeEach(async () => {
+    jest.resetModules();
+
     testNum++;
     const QUEUE_NAME = `test_${testNum}`;
     const redisConnectionOptions = {
-      host: container.getHost(),
-      port: container.getMappedPort(TestConfig.redis.port)
+      host: redis.getHost(),
+      port: redis.getMappedPort(TestConfig.redis.port)
     };
 
     @Processor(QUEUE_NAME)
@@ -140,11 +201,13 @@ describe('TrackedProcessor', () => {
       imports: [
         BullModule.forRoot({ connection: redisConnectionOptions }),
         BullModule.registerQueue({ name: QUEUE_NAME }),
+        RepositoryPostgresModule.forRoot({ databaseUrl: DATABASE_URL_POSTGRES, assetBucket: '' }),
       ],
       providers: [
         TestQueue,
         TestQueueListener,
         TestTrackedProcessor,
+        TrackedQueueRepository,
         { provide: Providers.ILogger, useValue: mockLogger },
       ],
     }).compile();
@@ -159,8 +222,14 @@ describe('TrackedProcessor', () => {
     await listener.queueEvents.waitUntilReady();
   });
 
-  afterEach(async () => { await app.close(); })
-  afterAll(async () => { await container.stop(); })
+  afterEach(async () => {
+    await app?.close();
+  })
+
+  afterAll(async () => {
+    await postgres?.stop();
+    await redis?.stop();
+  })
 
   describe('event', () => {
     it('can be paused', async () => {

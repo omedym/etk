@@ -24,47 +24,12 @@ enum JobDataType {
   @@schema("dmq")
 }
 
-enum JobEvent {
-  queueJobActive
-  queueJobAdded
-  queueCleaned
-  queueJobCompleted
-  queueJobDelayed
-  queueDrained
-  queueJobDuplicated
-  queueError
-  queueJobFailed
-  queuePaused
-  queueJobProgress
-  queueJobRemoved
-  queueResumed
-  queueJobRetriesExhausted
-  queueJobStalled
-  queueJobWaiting
-  queueJobWaitingChildren
-  workerJobActive
-  workerClosed
-  workerClosing
-  workerJobCompleted
-  workerDrained
-  workerError
-  workerJobFailed
-  workerPaused
-  workerJobProgress
-  workerReady
-  workerResumed
-  workerJobStalled
-  unknown
-  @@schema("dmq")
-}
-
 enum JobState {
   active
   added
   completed
   delayed
   failed
-  stalled
   waiting
   waitingChilden
   unknown
@@ -84,7 +49,7 @@ model TrackedQueueJob {
   data                      Json?               @db.JsonB
   metadata                  Json?               @db.JsonB
   result                    Json?               @db.JsonB
-  log                       String[]            @db.Text
+  log                       String?             @db.Text
 
   createdAt                 DateTime            @db.Timestamptz(6) @default(now())
   updatedAt                 DateTime            @db.Timestamptz(6) @default(now()) @updatedAt
@@ -92,9 +57,6 @@ model TrackedQueueJob {
   events                    TrackedQueueJobEvent[]
 
   @@id([tenantId, jobId])
-  @@unique([jobId])
-
-  @@index([jobId])
   @@index([tenantId, dataId, queueGroupId, queueId, jobId, updatedAt(sort: Desc), state])
   @@index([tenantId, queueGroupId, queueId, jobId, updatedAt(sort: Desc), state])
   @@map("trackedqueue_job")
@@ -106,19 +68,14 @@ model TrackedQueueJobEvent {
   jobId                     String              @db.VarChar(64)
   jobEventId                String              @db.VarChar(64) @default(cuid())
 
-  event                     JobEvent            @default(unknown)
   state                     JobState            @default(unknown)
-  statePrev                 JobState            @default(unknown)
   metadata                  Json?               @db.JsonB
-  log                       String[]            @db.Text
 
   createdAt                 DateTime            @db.Timestamptz(6) @default(now())
 
   job                       TrackedQueueJob     @relation(fields: [tenantId, jobId], references: [tenantId, jobId])
 
   @@id([tenantId, jobId, jobEventId])
-
-  @@index([jobId, createdAt(sort: Desc), state])
   @@index([tenantId, jobId, createdAt(sort: Desc), state])
   @@map("trackedqueue_job_event")
   @@schema("dmq")
