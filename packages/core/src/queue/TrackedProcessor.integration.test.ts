@@ -109,11 +109,12 @@ describe('TrackedProcessor', () => {
   let redis: StartedTestContainer;
 
   let listener: QueueListener;
+  let processor: TrackedProcessor;
   let producer: { queue: Queue };
+  let repository: TrackedQueueRepository;
 
   let DATABASE_URL_POSTGRES: string;
-  let processor: TrackedProcessor;
-
+  
   const env = process.env;
   process.env = { ...env };
 
@@ -216,6 +217,7 @@ describe('TrackedProcessor', () => {
     processor = moduleRef.get<TestTrackedProcessor>(TestTrackedProcessor);
     listener = moduleRef.get<TestQueueListener>(TestQueueListener);
     producer = moduleRef.get<TestQueue>(TestQueue);
+    repository = moduleRef.get<TrackedQueueRepository>(TrackedQueueRepository);
 
     await app.init();
     await processor.worker.waitUntilReady();
@@ -258,9 +260,15 @@ describe('TrackedProcessor', () => {
     it('can receive emitted event: added', async () => {
       const spies = insertQueueSpies();
 
+      type TestJobData = { id: string; tenantid: string; data: object };
+      const testJobData = { id: createId(), tenantid: '!!', data: {} };
+
       const cuid = createId();
-      await producer.queue.add(cuid+'-1', {});
-      await producer.queue.add(cuid+'-2', {});
+      const jobId1 = cuid + '-1';
+      const jobId2 = cuid + '-2';
+
+      await producer.queue.add(jobId1, testJobData, { jobId: jobId1 });
+      await producer.queue.add(jobId2, testJobData, { jobId: jobId2 });
 
       await processor.worker.delay(TestConfig.bullMq.delayMs);
 
@@ -268,11 +276,33 @@ describe('TrackedProcessor', () => {
       // console.warn(`consoleLogs:`, JSON.stringify(spies.console.info.mock.calls, null, 2));
 
       expect(spies.queue.onAdded).toHaveBeenCalledTimes(2);
-      expect(listener.logs).toContain(`[001] Job 1 Added: ${cuid+'-1'}`);
-      expect(listener.logs).toContain(`[002] Job 2 Added: ${cuid+'-2'}`);
+      expect(listener.logs).toContain(`[001] Job ${jobId1} Added: ${jobId1}`);
+      expect(listener.logs).toContain(`[002] Job ${jobId2} Added: ${jobId2}`);
 
-      expect(spies.console.info).toHaveBeenCalledWith(`Job 1 Processing: ${cuid+'-1'}`);
-      expect(spies.console.info).toHaveBeenCalledWith(`Job 2 Processing: ${cuid+'-2'}`);
+      expect(spies.console.info).toHaveBeenCalledWith(`Job ${jobId1} Processing: ${jobId1}`);
+      expect(spies.console.info).toHaveBeenCalledWith(`Job ${jobId2} Processing: ${jobId2}`);
+    });
+
+    it('can track a job being added', async () => {
+      const spies = insertQueueSpies();
+
+      type TestJobData = { id: string; tenantid: string; data: object };
+      const testJobData = { id: createId(), tenantid: '!!', data: {} };
+
+      const jobId = createId();
+      producer.queue.add(jobId, testJobData, { jobId: jobId });
+      await processor.worker.delay(TestConfig.bullMq.delayMs);
+
+      const result = await repository.findJobById({ tenantId: '!!', jobId });
+
+      spies.showListenerLogs();
+      console.debug(JSON.stringify(result, null, 2));
+
+      expect(result).toBeDefined();
+      expect(result?.events?.length).toEqual(2);
+      expect(result?.state).toEqual('active');
+
+      expect(spies.console.info).toHaveBeenCalledWith(`Job ${jobId} Processing: ${jobId}`);
     });
   });
 });

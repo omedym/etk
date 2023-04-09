@@ -194,6 +194,11 @@ describe('BullMQ Processor', () => {
         super(externalService)
       }
 
+      @OnWorkerEvent('active')
+      onActive(job: Job<any, any, string>, prev: string) {
+        this.log(`Job ${job.id} Active: ${JSON.stringify(prev)}`);
+      }
+
       @OnWorkerEvent('completed')
       onCompleted(job: Job<any, any, string>) {
         this.log(`Job ${job.id} Completed: ${JSON.stringify(job.returnvalue)}`);
