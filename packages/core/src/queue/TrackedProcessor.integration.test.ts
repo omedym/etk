@@ -6,9 +6,9 @@ import { createId } from '@paralleldrive/cuid2';
 import { PostgreSqlContainer, StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import { Queue } from 'bullmq';
 import { DateTime } from 'luxon';
+import { exec } from 'node:child_process';
+import { promisify } from 'node:util';
 import { GenericContainer, StartedTestContainer } from 'testcontainers';
-import { exec } from "node:child_process";
-import { promisify } from "node:util";
 
 import { RepositoryPostgresModule, TrackedQueueRepository } from '@omedym/nestjs-dmq-repository-postgres';
 
@@ -114,7 +114,7 @@ describe('TrackedProcessor', () => {
   let repository: TrackedQueueRepository;
 
   let DATABASE_URL_POSTGRES: string;
-  
+
   const env = process.env;
   process.env = { ...env };
 
@@ -187,8 +187,12 @@ describe('TrackedProcessor', () => {
       port: redis.getMappedPort(TestConfig.redis.port)
     };
 
+    type MessageJobData = { id: string; tenantid: string; data: object };
+    type EmptyJobData = {};
+    type TestJobData = MessageJobData | EmptyJobData;
+
     @Processor(QUEUE_NAME)
-    class TestTrackedProcessor extends TrackedProcessor { }
+    class TestTrackedProcessor extends TrackedProcessor<TestJobData> { }
 
     class TestQueue {
       constructor(@InjectQueue(QUEUE_NAME) public queue: Queue) { }
@@ -260,8 +264,7 @@ describe('TrackedProcessor', () => {
     it('can receive emitted event: added', async () => {
       const spies = insertQueueSpies();
 
-      type TestJobData = { id: string; tenantid: string; data: object };
-      const testJobData = { id: createId(), tenantid: '!!', data: {} };
+      const testJobData = {};
 
       const cuid = createId();
       const jobId1 = cuid + '-1';
@@ -286,7 +289,6 @@ describe('TrackedProcessor', () => {
     it('can track a job being added', async () => {
       const spies = insertQueueSpies();
 
-      type TestJobData = { id: string; tenantid: string; data: object };
       const testJobData = { id: createId(), tenantid: '!!', data: {} };
 
       const jobId = createId();

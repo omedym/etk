@@ -72,3 +72,10 @@ export interface IMessageV1<
 
   tenantid: string;
 }
+
+/**
+ * Use when unsure if any attributes of a message will be available
+ * or handling a payload masquerading as a message.
+ */
+export interface IUnknownMessage extends Partial<IMessage> {}
+

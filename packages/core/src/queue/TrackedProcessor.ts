@@ -1,14 +1,18 @@
-import { WorkerHost, OnWorkerEvent } from '@nestjs/bullmq';
+import { OnWorkerEvent } from '@nestjs/bullmq';
 import { Inject, Injectable } from '@nestjs/common';
+import { TrackedWorkerHost } from './TrackedWorkerHost';
 import { Job } from 'bullmq';
 
 import { TrackedQueueRepository } from '@omedym/nestjs-dmq-repository-postgres';
 
-import { Providers } from '../providers';
 import { ILogger } from '../telemetry';
+import { IMessage, IUnknownMessage } from '../message';
+import { Providers } from '../providers';
 
 @Injectable()
-export abstract class TrackedProcessor extends WorkerHost {
+export abstract class TrackedProcessor<
+  T extends IMessage | IUnknownMessage = any
+> extends TrackedWorkerHost<T> {
 
   constructor(
     readonly trackedQueueRepository: TrackedQueueRepository,
@@ -17,7 +21,7 @@ export abstract class TrackedProcessor extends WorkerHost {
     super();
   };
 
-  async process(job: Job<any, any, string>): Promise<any> {
+  async process(job: Job<T>): Promise<any> {
     this.logger.info(`Job ${job.id} Processing: ${job.name}`);
   }
 
@@ -26,11 +30,11 @@ export abstract class TrackedProcessor extends WorkerHost {
   }
 
   @OnWorkerEvent('active')
-  async onActive(job: Job<any, any, string>, prev: string) {
+  async onActive(job: Job<T>, prev: string) {
     this.logger.debug(`Job ${job.id} Active: ${JSON.stringify(job)}`);
 
     const trackedJob = await this.trackedQueueRepository.trackJob({
-      tenantId: job?.data?.tenantid,
+      tenantId: job.data?.tenantid || 'SYSTEM',
       queueGroupId: 'queueGroupId',
       queueId: 'queueId',
       jobId: job.id,
@@ -41,7 +45,7 @@ export abstract class TrackedProcessor extends WorkerHost {
     });
 
     const updatedTrackedJob = await this.trackedQueueRepository.updateTrackedJob({
-      tenantId: job?.data?.tenantid,
+      tenantId: job.data.tenantid || 'SYSTEM',
       jobId: job.id!,
       state: 'active',
       // event: { prev: "prev" }
@@ -51,7 +55,7 @@ export abstract class TrackedProcessor extends WorkerHost {
   }
 
   @OnWorkerEvent('completed')
-  async onCompleted(job: Job<any, any, string>) {
+  async onCompleted(job: Job<T>) {
     this.logger.debug(`Job ${job.id} Completed: ${JSON.stringify(job)}`);
 
     // const result = await this.trackedQueueRepository.findJobById({ tenantId: job?.data?.tenantid || '!!' , jobId: job?.data?.tenantid || '!!'});
