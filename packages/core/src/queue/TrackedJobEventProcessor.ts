@@ -3,7 +3,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { Job, Queue } from 'bullmq';
 import { DateTime } from 'luxon';
 
-import { JobState, TrackedQueueRepository } from '@omedym/nestjs-dmq-repository-postgres';
+import { JobEvent, JobState, TrackedQueueRepository } from '@omedym/nestjs-dmq-repository-postgres';
 
 import { Providers } from '../providers';
 import { TypedWorkerHost } from './TypedWorkerHost';
@@ -47,7 +47,7 @@ export class TrackedJobEventQueue {
       updatedAt: DateTime.fromMillis(job.processedOn!),
     };
 
-    this.queue.add('active', event, { ...this.defaultOptions });
+    this.queue.add(JobEvent.active, event, { ...this.defaultOptions });
   }
 
   trackCompleted(job: Job, prev: string) {
@@ -57,7 +57,7 @@ export class TrackedJobEventQueue {
       createdAt: DateTime.fromMillis(job.finishedOn!),
     };
 
-    this.queue.add('completed', event, { ...this.defaultOptions });
+    this.queue.add(JobEvent.completed, event, { ...this.defaultOptions });
   }
 
   trackFailed(job: Job, error: Error, prev: string) {
@@ -66,7 +66,7 @@ export class TrackedJobEventQueue {
       createdAt: DateTime.fromMillis(job.finishedOn!),
     };
 
-    this.queue.add('failed', event, { ...this.defaultOptions });
+    this.queue.add(JobEvent.failed, event, { ...this.defaultOptions });
   }
 
   trackProgress(job: Job, progress: number | object ) {
@@ -75,7 +75,7 @@ export class TrackedJobEventQueue {
       createdAt: DateTime.fromMillis(job.processedOn!),
     };
 
-    this.queue.add('progress', event, { ...this.defaultOptions });
+    this.queue.add(JobEvent.progress, event, { ...this.defaultOptions });
   }
 
   buildEvent(job: Job, prev?: string): TrackedJobEventData {
@@ -139,13 +139,13 @@ export class TrackedJobEventProcessor extends TypedWorkerHost<TrackedJobEventDat
     console.warn(`Job ${job.id} Processing: ${job.data.jobId} ${job.name}`);
 
     switch(job.name) {
-      case JobState.active:
+      case JobEvent.active:
         return this.onJobActive(job.data);
-      case JobState.completed:
+      case JobEvent.completed:
         return this.onJobCompleted(job.data);
-      case JobState.failed:
+      case JobEvent.failed:
         return this.onJobFailed(job.data);
-      case 'progress':
+      case JobEvent.progress:
         return this.onJobProgress(job.data)
       default:
         throw new Error(`Unsupported Job Event State: ${job.name}`);
@@ -178,7 +178,8 @@ export class TrackedJobEventProcessor extends TypedWorkerHost<TrackedJobEventDat
       tenantId: event.tenantId,
       jobId: event.jobId,
       createdAt: event.updatedAt,
-      state: 'active',
+      event: JobEvent.active,
+      state: JobState.active,
       metadata: event.metadata,
     });
   }
@@ -200,7 +201,8 @@ export class TrackedJobEventProcessor extends TypedWorkerHost<TrackedJobEventDat
       tenantId: event.tenantId,
       jobId: event.jobId,
       createdAt: event.createdAt,
-      state: 'completed',
+      event: JobEvent.completed,
+      state: JobState.completed,
       metadata: typeof(progress) !== 'object'
         ? { ...restOfMetadata, progress: 1.0 }
         : event.metadata,
@@ -214,7 +216,8 @@ export class TrackedJobEventProcessor extends TypedWorkerHost<TrackedJobEventDat
       tenantId: event.tenantId,
       jobId: event.jobId,
       createdAt: event.createdAt,
-      state: 'failed',
+      event: JobEvent.failed,
+      state: JobState.failed,
       metadata: event.metadata,
     });
   }
@@ -226,7 +229,8 @@ export class TrackedJobEventProcessor extends TypedWorkerHost<TrackedJobEventDat
       tenantId: event.tenantId,
       jobId: event.jobId,
       createdAt: event.createdAt,
-      state: 'active',
+      event: JobEvent.progress,
+      state: JobState.active,
       metadata: event.metadata,
     });
   }

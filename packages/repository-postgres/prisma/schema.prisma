@@ -24,12 +24,23 @@ enum JobDataType {
   @@schema("dmq")
 }
 
+enum JobEvent {
+  active
+  completed
+  failed
+  stalled
+  progress
+  unknown
+  @@schema("dmq")
+}
+
 enum JobState {
   active
   added
   completed
   delayed
   failed
+  stalled
   waiting
   waitingChilden
   unknown
@@ -68,6 +79,7 @@ model TrackedQueueJobEvent {
   jobId                     String              @db.VarChar(64)
   jobEventId                String              @db.VarChar(64) @default(cuid())
 
+  event                     JobEvent            @default(unknown)
   state                     JobState            @default(unknown)
   metadata                  Json?               @db.JsonB
 
