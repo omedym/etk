@@ -18,6 +18,7 @@ type TrackedJobEventData = {
   metadata: {
     attemptsMade?: number;
     failedReason?: string;
+    progress?: number | object;
     statePrev?: JobState;
     stackTrace?: string[];
   },
@@ -68,7 +69,17 @@ export class TrackedJobEventQueue {
     this.queue.add('failed', event, { ...this.defaultOptions });
   }
 
+  trackProgress(job: Job, progress: number | object ) {
+    const event = {
+      ...this.buildEvent(job, 'active'),
+      createdAt: DateTime.fromMillis(job.processedOn!),
+    };
+
+    this.queue.add('progress', event, { ...this.defaultOptions });
+  }
+
   buildEvent(job: Job, prev?: string): TrackedJobEventData {
+    const progress = this.recalcProgress(job.progress);
     const event: TrackedJobEventData = {
       tenantId: job.data.tenantid || 'SYSTEM',
       jobId: job.id!,
@@ -76,12 +87,36 @@ export class TrackedJobEventQueue {
       metadata: {
         attemptsMade: job.attemptsMade,
         ...( job.failedReason ? { failedReason: job.failedReason } : {} ),
+        ...( progress ? { progress } : {} ),
         ...( prev ? { statePrev: prev as JobState } : {} ),
         ...( job.stacktrace.length > 0 ? { stacktrace: job.stacktrace } : {} ),
       },
     };
 
     return event;
+  }
+
+  /**
+   * If numeric progress is provided we ensure that it is factored into a percentile
+   * friendly range between 0.0 and 1.0. Otherwise return an object or undefined.
+   */
+  recalcProgress(progress?: number | object) {
+    if(typeof(progress) === 'object') return progress;
+
+    if(typeof(progress) !== 'number') return undefined;
+
+    if(progress === 0.0) return undefined;
+
+    if(progress > 0.0 && progress <= 1.0)
+      return progress;
+
+    if(progress > 1.0 && progress <= 100.0)
+      return progress / 100.0;
+
+    if(progress > 100.0)
+      return { value: progress };
+
+    return undefined;
   }
 }
 
@@ -110,6 +145,8 @@ export class TrackedJobEventProcessor extends TypedWorkerHost<TrackedJobEventDat
         return this.onJobCompleted(job.data);
       case JobState.failed:
         return this.onJobFailed(job.data);
+      case 'progress':
+        return this.onJobProgress(job.data)
       default:
         throw new Error(`Unsupported Job Event State: ${job.name}`);
     }
@@ -146,15 +183,27 @@ export class TrackedJobEventProcessor extends TypedWorkerHost<TrackedJobEventDat
     });
   }
 
+
   async onJobCompleted(event: TrackedJobEventData): Promise<any> {
     this.logger.info(`Job ${event.jobId} Completed`, event);
 
+    const { progress, ...restOfMetadata } = event.metadata;
+
+    /**
+     * - We assumed the createdAt timestamp was derived from job.finishedOn
+     * - As we're marking the job completed we automatically set any numeric progress
+     *   information to 1.0. If an object based progress is being used it is up to the
+     *   consumer to update this object a final time before the job completed event is
+     *   published.
+     */
     const updated = await this.repository.updateTrackedJob({
       tenantId: event.tenantId,
       jobId: event.jobId,
       createdAt: event.createdAt,
       state: 'completed',
-      metadata: event.metadata,
+      metadata: typeof(progress) !== 'object'
+        ? { ...restOfMetadata, progress: 1.0 }
+        : event.metadata,
     });
   }
 
@@ -166,6 +215,18 @@ export class TrackedJobEventProcessor extends TypedWorkerHost<TrackedJobEventDat
       jobId: event.jobId,
       createdAt: event.createdAt,
       state: 'failed',
+      metadata: event.metadata,
+    });
+  }
+
+  async onJobProgress(event: TrackedJobEventData): Promise<any> {
+    this.logger.debug(`Job ${event.jobId} Progress`, event);
+
+    const updated = await this.repository.updateTrackedJob({
+      tenantId: event.tenantId,
+      jobId: event.jobId,
+      createdAt: event.createdAt,
+      state: 'active',
       metadata: event.metadata,
     });
   }

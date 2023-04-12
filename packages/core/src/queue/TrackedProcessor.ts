@@ -48,4 +48,9 @@ export abstract class TrackedProcessor<
   onFailed(job: Job<T>, error: Error, prev: string) {
     this.jobEventQueue.trackFailed(job, error, prev);
   };
+
+  @OnWorkerEvent('progress')
+  onProgress(job: Job<T>, progress: number | object) {
+    this.jobEventQueue.trackProgress(job, progress);
+  }
 }
