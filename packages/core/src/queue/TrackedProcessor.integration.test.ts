@@ -1,4 +1,3 @@
-import { Runfiles } from '@bazel/runfiles';
 import { InjectQueue, BullModule, Processor, OnQueueEvent, QueueEventsListener, QueueEventsHost } from '@nestjs/bullmq';
 import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
@@ -9,12 +8,15 @@ import { DateTime } from 'luxon';
 import { exec } from 'node:child_process';
 import { promisify } from 'node:util';
 import { GenericContainer, StartedTestContainer } from 'testcontainers';
+import { Runfiles } from '@bazel/runfiles';
 
 import { RepositoryPostgresModule, TrackedQueueRepository } from '@omedym/nestjs-dmq-repository-postgres';
 
-import { ILogger } from '../telemetry';
+import { IMessage, IUnknownMessage } from '../message';
 import { Providers } from '../providers';
+import { TrackedJobEventProcessor, TrackedJobEventQueue } from './TrackedJobEventProcessor';
 import { TrackedProcessor } from './TrackedProcessor';
+import { ILogger } from '../telemetry';
 
 
 const TestConfig = {
@@ -37,13 +39,13 @@ const TestConfig = {
   },
   bullMq: {
     delayMs: process.env.TESTCONFIG__BULLMQ__DELAY_MS
-      ? Number(process.env.TESTCONFIG__BULLMQ__DELAY_MS) : 1000 * 1,
+      ? Number(process.env.TESTCONFIG__BULLMQ__DELAY_MS) : 1000 * 2,
     showLogs: process.env.TESTCONFIG__BULLMQ__SHOWLOGS
     ? Boolean(process.env.TESTCONFIG__BULLMQ__SHOWLOGS) : false,
   },
   jest: {
     timeoutMs: process.env.TESTCONFIG__JEST__TIMEOUT_MS
-      ? Number(process.env.TESTCONFIG__JEST__TIMEOUT_MS) : 1000 * 10,
+      ? Number(process.env.TESTCONFIG__JEST__TIMEOUT_MS) : 1000 * 15,
   },
 };
 
@@ -56,8 +58,10 @@ const mockLogger = {
   matchFilePartRegEx: jest.fn(),
   log: jest.fn(),
   warn: jest.fn(),
+  // warn: (x: any) => console.warn(x),
   error: jest.fn(),
   debug: jest.fn(),
+  // debug: (x: any) => console.debug(x),
 } as unknown as ILogger;
 
 /** Monitor A BullMQ Queue Using BullMQ Queue Events */
@@ -99,6 +103,16 @@ class QueueListener extends QueueEventsHost {
   onResumed() { this._onResumed(); }
 }
 
+type MessageJobData = { id: string; tenantid: string; data: object };
+type EmptyJobData = {};
+type TestJobData = MessageJobData | EmptyJobData;
+
+const generateTestMessage = (data: IMessage | IUnknownMessage = {}): MessageJobData => { return {
+  data,
+  id: createId(),
+  tenantid: '!!',
+}};
+
 describe('TrackedProcessor', () => {
   jest.setTimeout(TestConfig.jest.timeoutMs);
 
@@ -107,6 +121,9 @@ describe('TrackedProcessor', () => {
   let app: INestApplication;
   let postgres: StartedPostgreSqlContainer;
   let redis: StartedTestContainer;
+
+  let trackedJobEventProcessor: TrackedJobEventProcessor;
+  let trackedJobEventListener: QueueListener;
 
   let listener: QueueListener;
   let processor: TrackedProcessor;
@@ -148,6 +165,7 @@ describe('TrackedProcessor', () => {
       .withDatabase(postgresDbName)
       .withExposedPorts(TestConfig.postgres.port)
       .withPassword(TestConfig.postgres.userPassword)
+      .withReuse()
       .withStartupTimeout(TestConfig.postgres.startupMs)
       .withUsername(TestConfig.postgres.userName)
       .start();
@@ -187,10 +205,6 @@ describe('TrackedProcessor', () => {
       port: redis.getMappedPort(TestConfig.redis.port)
     };
 
-    type MessageJobData = { id: string; tenantid: string; data: object };
-    type EmptyJobData = {};
-    type TestJobData = MessageJobData | EmptyJobData;
-
     @Processor(QUEUE_NAME)
     class TestTrackedProcessor extends TrackedProcessor<TestJobData> { }
 
@@ -202,9 +216,13 @@ describe('TrackedProcessor', () => {
     @QueueEventsListener(QUEUE_NAME, { lastEventId: '0-0', connection: redisConnectionOptions })
     class TestQueueListener extends QueueListener { }
 
+    @QueueEventsListener(Providers.TrackedJobEventQueue, { lastEventId: '0-0', connection: redisConnectionOptions })
+    class TrackedJobEventListener extends QueueListener { }
+
     const moduleRef = await Test.createTestingModule({
       imports: [
         BullModule.forRoot({ connection: redisConnectionOptions }),
+        BullModule.registerQueue({ name: Providers.TrackedJobEventQueue }),
         BullModule.registerQueue({ name: QUEUE_NAME }),
         RepositoryPostgresModule.forRoot({ databaseUrl: DATABASE_URL_POSTGRES, assetBucket: '' }),
       ],
@@ -213,17 +231,27 @@ describe('TrackedProcessor', () => {
         TestQueueListener,
         TestTrackedProcessor,
         TrackedQueueRepository,
+        TrackedJobEventQueue,
+        TrackedJobEventProcessor,
+        TrackedJobEventListener,
         { provide: Providers.ILogger, useValue: mockLogger },
       ],
     }).compile();
 
     app = moduleRef.createNestApplication();
+
+    trackedJobEventProcessor = moduleRef.get<TrackedJobEventProcessor>(TrackedJobEventProcessor);
+    trackedJobEventListener = moduleRef.get<TrackedJobEventListener>(TrackedJobEventListener);
+
     processor = moduleRef.get<TestTrackedProcessor>(TestTrackedProcessor);
     listener = moduleRef.get<TestQueueListener>(TestQueueListener);
     producer = moduleRef.get<TestQueue>(TestQueue);
     repository = moduleRef.get<TrackedQueueRepository>(TrackedQueueRepository);
 
+
     await app.init();
+    await trackedJobEventProcessor.worker.waitUntilReady();
+    await trackedJobEventListener.queueEvents.waitUntilReady();
     await processor.worker.waitUntilReady();
     await listener.queueEvents.waitUntilReady();
   });
@@ -264,18 +292,16 @@ describe('TrackedProcessor', () => {
     it('can receive emitted event: added', async () => {
       const spies = insertQueueSpies();
 
-      const testJobData = {};
-
       const cuid = createId();
       const jobId1 = cuid + '-1';
       const jobId2 = cuid + '-2';
 
-      await producer.queue.add(jobId1, testJobData, { jobId: jobId1 });
-      await producer.queue.add(jobId2, testJobData, { jobId: jobId2 });
+      await producer.queue.add(jobId1, generateTestMessage(), { jobId: jobId1 });
+      await producer.queue.add(jobId2, generateTestMessage(), { jobId: jobId2 });
 
       await processor.worker.delay(TestConfig.bullMq.delayMs);
 
-      spies.showListenerLogs();
+      // spies.showListenerLogs();
       // console.warn(`consoleLogs:`, JSON.stringify(spies.console.info.mock.calls, null, 2));
 
       expect(spies.queue.onAdded).toHaveBeenCalledTimes(2);
@@ -289,22 +315,35 @@ describe('TrackedProcessor', () => {
     it('can track a job being added', async () => {
       const spies = insertQueueSpies();
 
-      const testJobData = { id: createId(), tenantid: '!!', data: {} };
-
       const jobId = createId();
-      producer.queue.add(jobId, testJobData, { jobId: jobId });
-      await processor.worker.delay(TestConfig.bullMq.delayMs);
+      producer.queue.add(jobId, generateTestMessage(), { jobId: jobId });
+
+      // await processor.worker.delay(TestConfig.bullMq.delayMs);
+      await trackedJobEventProcessor.worker.delay(TestConfig.bullMq.delayMs);
+
+      spies.showListenerLogs();
 
       const result = await repository.findJobById({ tenantId: '!!', jobId });
 
-      spies.showListenerLogs();
+      expect(result).toBeDefined();
+      expect(result!.events!.length).toBeGreaterThan(1);
+      expect(result!.events![1].state).toEqual('active');
+
+      expect(spies.console.info).toHaveBeenCalledWith(`Job ${jobId} Processing: ${jobId}`);
+    });
+
+    it('can track a job being completed', async () => {
+      const jobId = createId();
+      producer.queue.add(jobId, generateTestMessage({ someText: 'abc', someNum: 123 }), { jobId: jobId });
+
+      await trackedJobEventProcessor.worker.delay(TestConfig.bullMq.delayMs);
+
+      const result = await repository.findJobById({ tenantId: '!!', jobId });
       console.debug(JSON.stringify(result, null, 2));
 
       expect(result).toBeDefined();
-      expect(result?.events?.length).toEqual(2);
-      expect(result?.state).toEqual('active');
-
-      expect(spies.console.info).toHaveBeenCalledWith(`Job ${jobId} Processing: ${jobId}`);
+      expect(result!.events!.length).toEqual(3);
+      expect(result!.state).toEqual('completed');
     });
   });
 });

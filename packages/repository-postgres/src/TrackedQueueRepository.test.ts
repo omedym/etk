@@ -1,10 +1,12 @@
 import { Test, TestingModule } from '@nestjs/testing';
+
 import cuid from '@paralleldrive/cuid2';
 import { DateTime } from 'luxon';
 
 import { PostgresProviders, PrismaPostgresService } from '.';
 import { TrackedQueueRepository } from './TrackedQueueRepository';
 import { CreateTrackedJobParams } from './types';
+
 
 describe('TrackedQueueRepository', () => {
   let service: TrackedQueueRepository;
