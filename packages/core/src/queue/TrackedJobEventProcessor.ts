@@ -78,6 +78,15 @@ export class TrackedJobEventQueue {
     this.queue.add(JobEvent.progress, event, { ...this.defaultOptions });
   }
 
+  trackStalled(job: Job, prev: string ) {
+    const event = {
+      ...this.buildEvent(job, prev),
+      createdAt: DateTime.fromMillis(job.processedOn!),
+    };
+
+    this.queue.add(JobEvent.stalled, event, { ...this.defaultOptions });
+  }
+
   buildEvent(job: Job, prev?: string): TrackedJobEventData {
     const progress = this.recalcProgress(job.progress);
     const event: TrackedJobEventData = {
@@ -147,6 +156,8 @@ export class TrackedJobEventProcessor extends TypedWorkerHost<TrackedJobEventDat
         return this.onJobFailed(job.data);
       case JobEvent.progress:
         return this.onJobProgress(job.data)
+      case JobEvent.stalled:
+        return this.onJobStalled(job.data)
       default:
         throw new Error(`Unsupported Job Event State: ${job.name}`);
     }
@@ -231,6 +242,19 @@ export class TrackedJobEventProcessor extends TypedWorkerHost<TrackedJobEventDat
       createdAt: event.createdAt,
       event: JobEvent.progress,
       state: JobState.active,
+      metadata: event.metadata,
+    });
+  }
+
+  async onJobStalled(event: TrackedJobEventData): Promise<any> {
+    this.logger.debug(`Job ${event.jobId} Stalled`, event);
+
+    const updated = await this.repository.updateTrackedJob({
+      tenantId: event.tenantId,
+      jobId: event.jobId,
+      createdAt: event.createdAt,
+      event: JobEvent.stalled,
+      state: JobState.stalled,
       metadata: event.metadata,
     });
   }

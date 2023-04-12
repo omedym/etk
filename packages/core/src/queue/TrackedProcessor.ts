@@ -1,9 +1,8 @@
 import { OnWorkerEvent } from '@nestjs/bullmq';
 import { Inject, Injectable } from '@nestjs/common';
 import { Job } from 'bullmq';
-import { DateTime } from 'luxon';
 
-import { JobState, TrackedQueueRepository } from '@omedym/nestjs-dmq-repository-postgres';
+import { TrackedQueueRepository } from '@omedym/nestjs-dmq-repository-postgres';
 
 import { ILogger } from '../telemetry';
 import { IMessage, IUnknownMessage } from '../message';
@@ -44,6 +43,18 @@ export abstract class TrackedProcessor<
     this.jobEventQueue.trackCompleted(job, 'active');
   }
 
+  @OnWorkerEvent('error')
+  async onError(error: Error) {
+    try {
+      error?.message.startsWith('Missing lock for job')
+        ? this.logger.warn('Missing lock for job', error)
+        : this.logger.error(error)
+    } catch (e) {
+      this.logger.error(error);
+      throw error;
+    }
+  }
+
   @OnWorkerEvent('failed')
   onFailed(job: Job<T>, error: Error, prev: string) {
     this.jobEventQueue.trackFailed(job, error, prev);
@@ -52,5 +63,10 @@ export abstract class TrackedProcessor<
   @OnWorkerEvent('progress')
   onProgress(job: Job<T>, progress: number | object) {
     this.jobEventQueue.trackProgress(job, progress);
+  }
+
+  @OnWorkerEvent('stalled')
+  async onStalled(job: Job<T>, prev: string) {
+    this.jobEventQueue.trackStalled(job, prev);
   }
 }
