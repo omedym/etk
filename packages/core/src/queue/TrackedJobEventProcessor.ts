@@ -17,9 +17,9 @@ type TrackedJobEventData = {
   data: IMessage | IUnknownMessage;
   metadata: {
     attemptsMade?: number;
-    stackTrace?: string[];
-    statePrev?: JobState;
     failedReason?: string;
+    statePrev?: JobState;
+    stackTrace?: string[];
   },
   createdAt?: DateTime;
   updatedAt?: DateTime;
@@ -40,7 +40,7 @@ export class TrackedJobEventQueue {
   constructor(@InjectQueue(Providers.TrackedJobEventQueue) public queue: Queue) { }
 
   trackActive(job: Job, prev: string) {
-    const event = { 
+    const event = {
       ...this.buildEvent(job, prev),
       createdAt: DateTime.fromMillis(job.timestamp),
       updatedAt: DateTime.fromMillis(job.processedOn!),
@@ -59,6 +59,15 @@ export class TrackedJobEventQueue {
     this.queue.add('completed', event, { ...this.defaultOptions });
   }
 
+  trackFailed(job: Job, error: Error, prev: string) {
+    const event = {
+      ...this.buildEvent(job, prev),
+      createdAt: DateTime.fromMillis(job.finishedOn!),
+    };
+
+    this.queue.add('failed', event, { ...this.defaultOptions });
+  }
+
   buildEvent(job: Job, prev?: string): TrackedJobEventData {
     const event: TrackedJobEventData = {
       tenantId: job.data.tenantid || 'SYSTEM',
@@ -66,9 +75,9 @@ export class TrackedJobEventQueue {
       data: job.data,
       metadata: {
         attemptsMade: job.attemptsMade,
-        ...( job.failedReason ? { failedReason: job.failedReason } : {}),
-        ...( job.stacktrace.length > 0 ? { stacktrace: job.stacktrace } : {}),
+        ...( job.failedReason ? { failedReason: job.failedReason } : {} ),
         ...( prev ? { statePrev: prev as JobState } : {} ),
+        ...( job.stacktrace.length > 0 ? { stacktrace: job.stacktrace } : {} ),
       },
     };
 
@@ -99,13 +108,15 @@ export class TrackedJobEventProcessor extends TypedWorkerHost<TrackedJobEventDat
         return this.onJobActive(job.data);
       case JobState.completed:
         return this.onJobCompleted(job.data);
+      case JobState.failed:
+        return this.onJobFailed(job.data);
       default:
         throw new Error(`Unsupported Job Event State: ${job.name}`);
     }
   }
 
   async onJobActive(event: TrackedJobEventData): Promise<any> {
-    console.warn(`Job ${event.jobId} Active: ${JSON.stringify(event)}`);
+    this.logger.info(`Job ${event.jobId} Active`, event);
 
     const exists = await this.repository.findJobById({
       tenantId: event.tenantId,
@@ -136,7 +147,7 @@ export class TrackedJobEventProcessor extends TypedWorkerHost<TrackedJobEventDat
   }
 
   async onJobCompleted(event: TrackedJobEventData): Promise<any> {
-    console.warn(`Job ${event.jobId} Completed: ${JSON.stringify(event)}`);
+    this.logger.info(`Job ${event.jobId} Completed`, event);
 
     const updated = await this.repository.updateTrackedJob({
       tenantId: event.tenantId,
@@ -147,4 +158,15 @@ export class TrackedJobEventProcessor extends TypedWorkerHost<TrackedJobEventDat
     });
   }
 
+  async onJobFailed(event: TrackedJobEventData): Promise<any> {
+    this.logger.error(`Job ${event.jobId} Failed`, event);
+
+    const updated = await this.repository.updateTrackedJob({
+      tenantId: event.tenantId,
+      jobId: event.jobId,
+      createdAt: event.createdAt,
+      state: 'failed',
+      metadata: event.metadata,
+    });
+  }
 }

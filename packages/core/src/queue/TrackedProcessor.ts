@@ -36,21 +36,16 @@ export abstract class TrackedProcessor<
 
   @OnWorkerEvent('active')
   async onActive(job: Job<T>, prev: string) {
-    this.logger.debug(`Job ${job.id} Active: ${JSON.stringify(job)}`);
-
-    const timestamp = DateTime.fromMillis(job.timestamp);
-    console.warn(timestamp.toJSDate());
-
     this.jobEventQueue.trackActive(job, prev);
   }
 
   @OnWorkerEvent('completed')
   async onCompleted(job: Job<T>) {
-    this.logger.debug(`Job ${job.id} Completed: ${JSON.stringify(job)}`);
-
-    const timestamp = DateTime.fromMillis(job.finishedOn!);
-    console.warn(timestamp.toJSDate());
-
     this.jobEventQueue.trackCompleted(job, 'active');
   }
+
+  @OnWorkerEvent('failed')
+  onFailed(job: Job<T>, error: Error, prev: string) {
+    this.jobEventQueue.trackFailed(job, error, prev);
+  };
 }
