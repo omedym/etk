@@ -38,6 +38,7 @@ export class TrackedQueueRepository {
 
         events: {
           create: [{
+            event: 'active',
             state: eventData.state,
             createdAt: timestampAt.toJSDate(),
           }],
@@ -76,7 +77,7 @@ export class TrackedQueueRepository {
       },
       where: {
         tenantId_jobId: { tenantId, jobId }},
-    })
+    });
 
     return trackedJob as ITrackedQueueJob<T>;
   };

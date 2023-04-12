@@ -1,9 +1,10 @@
 import { DateTime } from 'luxon';
 import {
+  JobEvent,
   JobState,
   JobDataType,
-  TrackedQueueJob,
 } from '@omedym/nestjs-dmq-postgres-client';
+
 
 export interface ITrackedQueueJob<T extends object = {}> {
   tenantId: string;
@@ -27,6 +28,7 @@ export interface ITrackedQueueJobEvent<T extends object = {}> {
   tenantId: string;
   jobId: string;
   jobEventId: string;
+  event: JobEvent;
   state: JobState;
   metadata?: object;
   createdAt: Date;
