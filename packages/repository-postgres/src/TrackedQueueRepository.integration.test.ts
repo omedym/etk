@@ -12,6 +12,7 @@ import { TrackedQueueRepository } from './TrackedQueueRepository';
 import { RepositoryPostgresModule } from './repository-postgres.module';
 import { CreateTrackedJobParams, UpdateTrackedJobParams, ITrackedQueueJob } from './types';
 
+
 const TestConfig = {
   postgres: {
     port: process.env.TESTCONFIG__POSTGRES__PORT
