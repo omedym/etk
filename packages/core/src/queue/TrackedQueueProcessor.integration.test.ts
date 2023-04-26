@@ -1,22 +1,27 @@
+import { Runfiles } from '@bazel/runfiles';
 import { InjectQueue, BullModule, Processor, OnQueueEvent, QueueEventsListener, QueueEventsHost } from '@nestjs/bullmq';
 import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { createId } from '@paralleldrive/cuid2';
 import { PostgreSqlContainer, StartedPostgreSqlContainer } from '@testcontainers/postgresql';
-import { Queue } from 'bullmq';
-import { DateTime } from 'luxon';
+import { DelayedError, Job, Queue } from 'bullmq';
+import { DateTime, Duration } from 'luxon';
 import { exec } from 'node:child_process';
 import { promisify } from 'node:util';
 import { GenericContainer, StartedTestContainer } from 'testcontainers';
-import { Runfiles } from '@bazel/runfiles';
 
 import { RepositoryPostgresModule, TrackedQueueRepository } from '@omedym/nestjs-dmq-repository-postgres';
 
 import { IMessage, IUnknownMessage } from '../message';
 import { Providers } from '../providers';
-import { TrackedJobEventProcessor, TrackedJobEventQueue } from './TrackedJobEventProcessor';
-import { TrackedProcessor } from './TrackedProcessor';
+import { TrackedJobEventProcessor } from './TrackedJobEventProcessor';
+import { TrackedJobEventQueue } from './TrackedJobEventQueue';
+import { TrackedQueueListener } from './TrackedQueueListener';
+import { TrackedQueueProcessor } from './TrackedQueueProcessor';
 import { ILogger } from '../telemetry';
+
+// import sentryTestkit from 'sentry-testkit';
+// const { testkit, sentryTransport } = sentryTestkit();
 
 
 const TestConfig = {
@@ -41,12 +46,16 @@ const TestConfig = {
     delayMs: process.env.TESTCONFIG__BULLMQ__DELAY_MS
       ? Number(process.env.TESTCONFIG__BULLMQ__DELAY_MS) : 1000 * 2,
     showLogs: process.env.TESTCONFIG__BULLMQ__SHOWLOGS
-    ? Boolean(process.env.TESTCONFIG__BULLMQ__SHOWLOGS) : true,
+      ? Boolean(process.env.TESTCONFIG__BULLMQ__SHOWLOGS) : false,
   },
   jest: {
     timeoutMs: process.env.TESTCONFIG__JEST__TIMEOUT_MS
-      ? Number(process.env.TESTCONFIG__JEST__TIMEOUT_MS) : 1000 * 15,
+      ? Number(process.env.TESTCONFIG__JEST__TIMEOUT_MS) : 1000 * 10,
   },
+  sentry: {
+    dsn: process.env.SENTRY_DSN
+      ? process.env.SENTRY_DSN : undefined
+  }
 };
 
 const runfiles = new Runfiles(process.env);
@@ -80,14 +89,15 @@ class QueueListener extends QueueEventsHost {
     this.logs.push(`[${entry}] ${message}`);
   }
 
-  onAdded(jobId: string, name: string) { this.log(`Job ${jobId} Added: ${name}`) };
+  onAdded(jobId: string, name: string, id: string) { this.log(`Job ${jobId} Added: ${name} id: ${id}`) };
   onCompleted(jobId: string, returnvalue: string) { this.log(`Job ${jobId} Completed: ${returnvalue}`) };
-  onDelayed(jobId: string, delay: number) { this.log(`Job ${jobId} Delayed: ${delay}`)}
+  onDelayed(jobId: string, delay: number, id: string) { this.log(`Job ${jobId} Delayed: ${DateTime.fromMillis(Number(delay)).toISO()} id: ${id}`) };
+  onError(error: Error) { this.log(`Queue Error: ${error.name}, ${error.message}, ${error.cause}`) };
   onPaused() { this.log(`Queue Paused`) };
   onResumed() { this.log(`Queue Resumed`) };
 
   @OnQueueEvent('added')
-  _onAdded(event: { jobId: string, name: string }, id: string) { this.onAdded(event.jobId, event.name) }
+  _onAdded(event: { jobId: string, name: string }, id: string) { this.onAdded(event.jobId, event.name, id) }
 
   @OnQueueEvent('completed')
   _onCompleted(event: { jobId: string, returnvalue: string, prev?: string}, id: string) {
@@ -95,13 +105,39 @@ class QueueListener extends QueueEventsHost {
   }
 
   @OnQueueEvent('delayed')
-  _onDelayed(event: { jobId: string, delay: number }, id: string) { this.onDelayed(event.jobId, event.delay) }
+  _onDelayed(event: { jobId: string, delay: number }, id: string) { this.onDelayed(event.jobId, event.delay, id) }
+
+  @OnQueueEvent('error')
+  _onError(event: Error) { this.onError(event) }
 
   @OnQueueEvent('paused')
   _onPaused() { this.onPaused(); }
 
   @OnQueueEvent('resumed')
   _onResumed() { this.onResumed(); }
+}
+
+/** Monitor A BullMQ Queue Using BullMQ Queue Events */
+class TestTrackedQueueListener extends TrackedQueueListener {
+  logs: string[] = [`[000] Queue Listener Start`];
+
+  log(message: string) {
+    const next = this.logs.length;
+    const entry = next > 99
+      ? next
+      : next > 9
+        ? `0${next}`
+        : `00${next}`;
+
+    this.logs.push(`[${entry}] ${message}`);
+  }
+
+  override async onAdded(jobId: string, name: string) { this.log(`Job ${jobId} Added: ${name}`) };
+  override async onCompleted(jobId: string, returnvalue: string) { this.log(`Job ${jobId} Completed: ${returnvalue}`) };
+  override async onDelayed(jobId: string, delay: number, id: string) { this.log(`Job ${jobId} Delayed: ${DateTime.fromMillis(Number(delay)).toISO()} id: ${id}`) };
+  override async onError(error: Error) { this.log(`Queue Error: ${error.name}, ${error.message}, ${error.cause}`) };
+  override async onPaused() { this.log(`Queue Paused`) };
+  override async onResumed() { this.log(`Queue Resumed`) };
 }
 
 type MessageJobData = { id: string; tenantid: string; data: object };
@@ -126,9 +162,14 @@ describe('TrackedProcessor', () => {
   let trackedJobEventProcessor: TrackedJobEventProcessor;
   let trackedJobEventListener: QueueListener;
 
-  let listener: QueueListener;
-  let processor: TrackedProcessor;
+  let listener: TestTrackedQueueListener;
+  let processor: TrackedQueueProcessor;
   let producer: { queue: Queue };
+
+  let delayedListener: TestTrackedQueueListener;
+  let delayedProcessor: TrackedQueueProcessor;
+  let delayedProducer: { queue: Queue };
+
   let repository: TrackedQueueRepository;
 
   let DATABASE_URL_POSTGRES: string;
@@ -137,7 +178,7 @@ describe('TrackedProcessor', () => {
   process.env = { ...env };
 
   const insertQueueSpies = (options?: {
-    queueListener?: QueueListener;
+    queueListener?: QueueListener | TestTrackedQueueListener;
   }) => {
     const target = {
       queueListener: options?.queueListener || listener,
@@ -152,10 +193,13 @@ describe('TrackedProcessor', () => {
         onAdded: jest.spyOn(target.queueListener, 'onAdded'),
         onCompleted: jest.spyOn(target.queueListener, 'onCompleted'),
         onDelayed: jest.spyOn(target.queueListener, 'onDelayed'),
+        onError: jest.spyOn(target.queueListener, 'onError'),
         onPaused: jest.spyOn(target.queueListener, 'onPaused'),
         onResumed: jest.spyOn(target.queueListener, 'onResumed'),
       },
-      showListenerLogs: () => TestConfig.bullMq.showLogs && console.warn(`listener.logs`, JSON.stringify(listener.logs, null, 2)),
+
+      showListenerLogs: (warn: boolean = false) => (warn || TestConfig.bullMq.showLogs)
+        && console.warn(JSON.stringify(target.queueListener.logs, null, 2)),
   }};
 
   beforeAll(async ()  => {
@@ -201,61 +245,101 @@ describe('TrackedProcessor', () => {
 
     testNum++;
     const QUEUE_NAME = `test_${testNum}`;
+    const DELAYED_QUEUE_NAME = `${QUEUE_NAME}_delayed`;
     const redisConnectionOptions = {
       host: redis.getHost(),
       port: redis.getMappedPort(TestConfig.redis.port)
     };
 
     @Processor(QUEUE_NAME)
-    class TestTrackedProcessor extends TrackedProcessor<TestJobData> { }
+    class TestTrackedProcessor extends TrackedQueueProcessor<TestJobData> { }
+
+    @Processor(DELAYED_QUEUE_NAME)
+    class TestDelayedTrackedProcessor extends TrackedQueueProcessor<TestJobData> {
+      override async process(job: Job<TestJobData>, token?: string) {
+        this.logger.info(`Job ${job.id} Processing: ${job.name}`);
+
+        if (job.attemptsMade > 2) return;
+
+        const runAt = DateTime.now().plus(Duration.fromISO('PT1S'));
+        job.moveToDelayed(runAt.toMillis(), token);
+        throw new DelayedError(`Job ${job.id} delayed until ${runAt.toISO()}`);
+      }
+    }
 
     class TestQueue {
       constructor(@InjectQueue(QUEUE_NAME) public queue: Queue) { }
     }
 
-    /** The `lastEventId` setting is critical for ensuring the listener captures events that occurred before initialization */
-    @QueueEventsListener(QUEUE_NAME, { lastEventId: '0-0', connection: redisConnectionOptions })
-    @QueueEventsListener(Providers.TrackedJobEventQueue, { lastEventId: '0-0', connection: redisConnectionOptions })
-    class TestQueueListener extends QueueListener { }
+    class TestDelayedQueue {
+      constructor(@InjectQueue(DELAYED_QUEUE_NAME) public queue: Queue) { }
+    }
 
+    /** The `lastEventId` setting is critical for ensuring the listener captures events that occurred before initialization */
     @QueueEventsListener(Providers.TrackedJobEventQueue, { lastEventId: '0-0', connection: redisConnectionOptions })
     class TrackedJobEventListener extends QueueListener { }
+    @QueueEventsListener(QUEUE_NAME, { lastEventId: '0-0', connection: redisConnectionOptions })
+    class TestQueueListener extends TestTrackedQueueListener { }
+    @QueueEventsListener(DELAYED_QUEUE_NAME, { lastEventId: '0-0', connection: redisConnectionOptions })
+    class TestDelayedQueueListener extends TestTrackedQueueListener { }
 
     const moduleRef = await Test.createTestingModule({
       imports: [
         BullModule.forRoot({ connection: redisConnectionOptions }),
         BullModule.registerQueue({ name: Providers.TrackedJobEventQueue }),
         BullModule.registerQueue({ name: QUEUE_NAME }),
+        BullModule.registerQueue({ name: DELAYED_QUEUE_NAME }),
         RepositoryPostgresModule.forRoot({ databaseUrl: DATABASE_URL_POSTGRES, assetBucket: '' }),
+        // SentryModule,
       ],
       providers: [
+        TestDelayedQueue,
+        TestDelayedTrackedProcessor,
         TestQueue,
         TestQueueListener,
         TestTrackedProcessor,
-        TrackedQueueRepository,
-        TrackedJobEventQueue,
-        TrackedJobEventProcessor,
         TrackedJobEventListener,
+        TrackedJobEventProcessor,
+        TrackedJobEventQueue,
+        TrackedQueueRepository,
+        TestDelayedQueueListener,
         { provide: Providers.ILogger, useValue: mockLogger },
       ],
     }).compile();
 
     app = moduleRef.createNestApplication();
 
-    trackedJobEventProcessor = moduleRef.get<TrackedJobEventProcessor>(TrackedJobEventProcessor);
     trackedJobEventListener = moduleRef.get<TrackedJobEventListener>(TrackedJobEventListener);
+    trackedJobEventProcessor = moduleRef.get<TrackedJobEventProcessor>(TrackedJobEventProcessor);
 
-    processor = moduleRef.get<TestTrackedProcessor>(TestTrackedProcessor);
     listener = moduleRef.get<TestQueueListener>(TestQueueListener);
+    processor = moduleRef.get<TestTrackedProcessor>(TestTrackedProcessor);
     producer = moduleRef.get<TestQueue>(TestQueue);
+
+    delayedListener = moduleRef.get<TestDelayedQueueListener>(TestDelayedQueueListener);
+    delayedProcessor = moduleRef.get<TestDelayedTrackedProcessor>(TestDelayedTrackedProcessor);
+    delayedProducer = moduleRef.get<TestDelayedQueue>(TestDelayedQueue);
+
     repository = moduleRef.get<TrackedQueueRepository>(TrackedQueueRepository);
 
-
+    // app.get<SentryService>(SentryService).initSentryWithApp(app, {
+    //   tags: {
+    //     service: 'types-messaging',
+    //   },
+    //   debug: false,
+    //   transport: sentryTransport,
+    //   dsn: TestConfig.sentry.dsn,
+    // });
     await app.init();
-    await trackedJobEventProcessor.worker.waitUntilReady();
+
     await trackedJobEventListener.queueEvents.waitUntilReady();
-    await processor.worker.waitUntilReady();
+    await trackedJobEventProcessor.worker.waitUntilReady();
+
     await listener.queueEvents.waitUntilReady();
+    await processor.worker.waitUntilReady();
+
+    await delayedListener.queueEvents.waitUntilReady();
+    await delayedProcessor.worker.waitUntilReady();
   });
 
   afterEach(async () => {
@@ -292,7 +376,7 @@ describe('TrackedProcessor', () => {
     });
 
     it('can receive emitted event: added', async () => {
-      const spies = insertQueueSpies();
+      const spies = insertQueueSpies({ queueListener: listener });
 
       const cuid = createId();
       const jobId1 = cuid + '-1';
@@ -323,7 +407,7 @@ describe('TrackedProcessor', () => {
       // await processor.worker.delay(TestConfig.bullMq.delayMs);
       await trackedJobEventProcessor.worker.delay(TestConfig.bullMq.delayMs);
 
-      spies.showListenerLogs();
+      // spies.showListenerLogs();
 
       const result = await repository.findJobById({ tenantId: '!!', jobId });
 
@@ -336,7 +420,6 @@ describe('TrackedProcessor', () => {
 
     it('can track a job being completed', async () => {
       const spies = insertQueueSpies();
-      const moreSpies = insertQueueSpies({ queueListener: trackedJobEventListener });
 
       const jobId = createId();
       producer.queue.add(jobId, generateTestMessage({ someText: 'abc', someNum: 123 }), { jobId: jobId, attempts: 5 });
@@ -344,14 +427,32 @@ describe('TrackedProcessor', () => {
       await processor.worker.delay(TestConfig.bullMq.delayMs);
       await trackedJobEventProcessor.worker.delay(TestConfig.bullMq.delayMs);
 
-      spies.showListenerLogs();
-      moreSpies.showListenerLogs();
+      // spies.showListenerLogs();
 
       const result = await repository.findJobById({ tenantId: '!!', jobId });
-      console.debug(JSON.stringify(result, null, 5));
+      // console.debug(JSON.stringify(result, null, 2));
 
       expect(result).toBeDefined();
       expect(result!.events!.length).toEqual(3);
+      expect(result!.state).toEqual('completed');
+    });
+
+    it('can track a job being delayed and completed', async () => {
+      const spies = insertQueueSpies({ queueListener: delayedListener });
+
+      const jobId = createId();
+      delayedProducer.queue.add(jobId, generateTestMessage({ someText: 'abc', someNum: 123 }), { jobId: jobId, attempts: 5 });
+
+      await delayedProcessor.worker.delay(TestConfig.bullMq.delayMs);
+      await trackedJobEventProcessor.worker.delay(TestConfig.bullMq.delayMs * 3);
+
+      // spies.showListenerLogs();
+
+      const result = await repository.findJobById({ tenantId: '!!', jobId });
+      // console.debug(JSON.stringify(result, null, 2));
+
+      expect(result).toBeDefined();
+      expect(result!.events!.length).toEqual(7);
       expect(result!.state).toEqual('completed');
     });
   });
