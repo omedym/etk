@@ -212,11 +212,39 @@ describe('TrackedQueueRepository', () => {
 
       const result = await SUT.updateTrackedJob(createUpdateJobJson(trackedJob.jobId, 'completed', 'completed'));
 
-      console.debug(JSON.stringify(result, null, 2));
-
       expect(result).toBeDefined();
       expect(result?.events?.length).toEqual(2);
       expect(result.state).toEqual('completed');
+    });
+
+    it(`can be fetched just by id`, async () => {
+      type TestJobData = { id: string; };
+      const testJobData = { id: createId() };
+
+      const jobToTrack: CreateTrackedJobParams<TestJobData> = createJobToTrackJson(testJobData);
+      const trackedJob = await SUT.trackJob(jobToTrack);
+
+      const result = await SUT.findJobById<ITrackedQueueJob<TestJobData>>(
+        { tenantId: trackedJob.tenantId, jobId: trackedJob.jobId }
+      );
+
+      expect(result).toBeDefined();
+      expect(result?.events?.length).toEqual(1);
+      expect(result?.state).toEqual('waiting');
+    });
+
+    it(`can be fetched just by jobId`, async () => {
+      type TestJobData = { id: string; };
+      const testJobData = { id: createId() };
+
+      const jobToTrack: CreateTrackedJobParams<TestJobData> = createJobToTrackJson(testJobData);
+      const trackedJob = await SUT.trackJob(jobToTrack);
+
+      const result = await SUT.findJobByJobId<ITrackedQueueJob<TestJobData>>(trackedJob.jobId);
+
+      expect(result).toBeDefined();
+      expect(result?.events?.length).toEqual(1);
+      expect(result?.state).toEqual('waiting');
     });
 
     it(`can be fetched along with event history`, async () => {

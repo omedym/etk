@@ -68,6 +68,9 @@ model TrackedQueueJob {
   events                    TrackedQueueJobEvent[]
 
   @@id([tenantId, jobId])
+  @@unique([jobId])
+
+  @@index([jobId])
   @@index([tenantId, dataId, queueGroupId, queueId, jobId, updatedAt(sort: Desc), state])
   @@index([tenantId, queueGroupId, queueId, jobId, updatedAt(sort: Desc), state])
   @@map("trackedqueue_job")

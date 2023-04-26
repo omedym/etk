@@ -27,6 +27,19 @@ export class TrackedQueueRepository {
     return job as ITrackedQueueJob<T>;
   }
 
+  async findJobByJobId<T extends object>(jobId: string): Promise<ITrackedQueueJob<T>> {
+    const job = (await this.prisma.trackedQueueJob.findUniqueOrThrow({
+      where: {
+         jobId: jobId,
+      },
+      include: {
+        events: true,
+      }
+    })) ;
+
+    return job as ITrackedQueueJob<T>;
+  }
+
   async trackJob<T extends object>(jobToTrack: CreateTrackedJobParams<T>): Promise<ITrackedQueueJob<T>> {
     const { createdAt, ...eventData } = jobToTrack;
     const timestampAt = createdAt && createdAt.isValid ? createdAt : DateTime.now();
