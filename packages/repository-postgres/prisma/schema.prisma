@@ -27,6 +27,7 @@ enum JobDataType {
 enum JobEvent {
   active
   completed
+  delayed
   failed
   stalled
   progress

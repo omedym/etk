@@ -2,7 +2,7 @@ import { InjectQueue, BullModule, Processor, OnQueueEvent, OnWorkerEvent, QueueE
 import { Injectable, INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { createId } from '@paralleldrive/cuid2';
-import { Job, Queue } from 'bullmq';
+import { DelayedError, Job, Queue } from 'bullmq';
 import { DateTime } from 'luxon';
 import { GenericContainer, StartedTestContainer } from 'testcontainers';
 
@@ -14,17 +14,17 @@ const TestConfig = {
     port: process.env.TESTCONFIG__REDIS__PORT
       ? Number(process.env.TESTCONFIG__REDIS__PORT) : 6379,
     startupMs: process.env.TESTCONFIG__REDIS__STARTUP_MS
-      ? Number(process.env.TESTCONFIG__REDIS__STARTUP_MS) : 15000,
+      ? Number(process.env.TESTCONFIG__REDIS__STARTUP_MS) : 1000 * 15,
   },
   bullMq: {
     delayMs: process.env.TESTCONFIG__BULLMQ__DELAY_MS
-      ? Number(process.env.TESTCONFIG__BULLMQ__DELAY_MS) : 1000,
+      ? Number(process.env.TESTCONFIG__BULLMQ__DELAY_MS) : 1000 * 1,
     showLogs: process.env.TESTCONFIG__BULLMQ__SHOWLOGS
       ? Boolean(process.env.TESTCONFIG__BULLMQ__SHOWLOGS) : false,
   },
   jest: {
     timeoutMs: process.env.TESTCONFIG__JEST__TIMEOUT_MS
-      ? Number(process.env.TESTCONFIG__JEST__TIMEOUT_MS) : 10000,
+      ? Number(process.env.TESTCONFIG__JEST__TIMEOUT_MS) : 1000 * 10,
   },
   sentry: {
     dsn: process.env.SENTRY_DSN
@@ -99,7 +99,7 @@ class QueueListener extends QueueEventsHost {
 
   onAdded(jobId: string, name: string) { this.log(`Job ${jobId} Added: ${name}`) };
   onCompleted(jobId: string, returnvalue: string) { this.log(`Job ${jobId} Completed: ${returnvalue}`) };
-  onDelayed(jobId: string, delay: number) { this.log(`Job ${jobId} Delayed: ${DateTime.fromMillis(Number(delay)).toISO()}`) };
+  onDelayed(jobId: string, delay: number, id: string) { this.log(`Job ${jobId} Delayed: ${DateTime.fromMillis(Number(delay)).toISO()} id: ${id}`) };
   onError(error: Error) { this.log(`Queue Error: ${error.name}, ${error.message}, ${error.cause}`) };
   onPaused() { this.log(`Queue Paused`) };
   onResumed() { this.log(`Queue Resumed`) };
@@ -113,9 +113,10 @@ class QueueListener extends QueueEventsHost {
   _onCompleted(event: { jobId: string, returnvalue: string, prev?: string}, id: string) {
     this.onCompleted(event.jobId, event.returnvalue);
   }
+
   @OnQueueEvent('delayed')
   // @Transaction('onQueueEvent-delayed')
-  _onDelayed(event: { jobId: string, delay: number }, id: string) { this.onDelayed(event.jobId, event.delay) }
+  _onDelayed(event: { jobId: string, delay: number }, id: string) { this.onDelayed(event.jobId, event.delay, id) }
 
   @OnQueueEvent('error')
   _onError(event: Error) { this.onError(event) }
@@ -293,8 +294,8 @@ describe('BullMQ Processor', () => {
       expect(listener.logs).toContain('[002] Job 1 Completed: done');
 
       // const sentryTransactions = testkit.transactions();
-      // const numberOfJobsAdded = 1;
-      // expect(sentryTransactions).toHaveLength(numberOfJobsAdded);
+      // const expectedTransactionsLength = 2;
+      // expect(sentryTransactions).toHaveLength(expectedTransactionsLength);
     });
 
     it('can inject job handler', async () => {
@@ -321,8 +322,8 @@ describe('BullMQ Processor', () => {
       expect(spies.console.info).toHaveBeenCalledWith(`Job 1 Processing: ${cuid}`);
 
       // const sentryTransactions = testkit.transactions();
-      // const numberOfJobsAdded = 2;
-      // expect(sentryTransactions).toHaveLength(numberOfJobsAdded);
+      // const expectedTransactionsLength = 2;
+      // expect(sentryTransactions).toHaveLength(expectedTransactionsLength );
     });
 
     it('can delay a job', async () => {
@@ -337,7 +338,7 @@ describe('BullMQ Processor', () => {
 
         console.info(`Job ${job.id} Delayed, External Service is still ${result}`);
         await job.moveToDelayed(DateTime.now().plus({ milliseconds: TestConfig.bullMq.delayMs / 2 }).toMillis(), token);
-        return;
+        throw new DelayedError();
       }
 
       const spies = insertQueueSpies({ externalService: newService });
@@ -359,8 +360,8 @@ describe('BullMQ Processor', () => {
       expect(spies.console.info).toHaveBeenCalledWith(`Job 1 Processing: ${cuid}`);
 
       // const sentryTransactions = testkit.transactions();
-      // const numberOfJobsAdded = 4;
-      // expect(sentryTransactions).toHaveLength(numberOfJobsAdded);
+      // const expectedTransactionsLength = 4;
+      // expect(sentryTransactions).toHaveLength(expectedTransactionsLength );
     });
 
     it('long delayed job remains in queue', async () => {
@@ -402,8 +403,8 @@ describe('BullMQ Processor', () => {
       // expect(DateTime.fromMillis(job.timestamp).toISO()).toEqual(delay.toISO());
 
       // const sentryTransactions = testkit.transactions();
-      // const numberOfJobsAdded = 3;
-      // expect(sentryTransactions).toHaveLength(numberOfJobsAdded);
+      // const expectedTransactionsLength = 3;
+      // expect(sentryTransactions).toHaveLength(expectedTransactionsLength );
     });
   });
 
@@ -419,16 +420,16 @@ describe('BullMQ Processor', () => {
 
       console.info(`Job ${job.id} Delayed, External Service is still ${result}`);
 
-      const unDelayAt = DateTime.now().plus({ milliseconds: TestConfig.bullMq.delayMs / 2 });
-      await job.moveToDelayed(unDelayAt.toMillis(), token);
+      const runAt = DateTime.now().plus({ milliseconds: TestConfig.bullMq.delayMs / 2 });
+      await job.moveToDelayed(runAt.toMillis(), token);
       await job.updateProgress({
-        delay: unDelayAt.toMillis(),
+        delay: runAt.toMillis(),
         jobId: job.id,
         state: (await job.getState()).toString(),
-        unDelayAt: unDelayAt.toISO(),
+        runAt: runAt.toISO(),
       });
 
-      return;
+      throw new DelayedError();
     }
 
     const spies = insertQueueSpies({ externalService: newService });
@@ -450,7 +451,7 @@ describe('BullMQ Processor', () => {
     expect(spies.console.info).toHaveBeenCalledWith(`Job 1 Processing: ${cuid}`);
 
     // const sentryTransactions = testkit.transactions();
-    // const numberOfJobsAdded = 4;
-    // expect(sentryTransactions).toHaveLength(numberOfJobsAdded);
+    // const expectedTransactionsLength = 4;
+    // expect(sentryTransactions).toHaveLength(expectedTransactionsLength);
   });
 });

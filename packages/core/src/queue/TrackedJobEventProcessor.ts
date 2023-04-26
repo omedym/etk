@@ -10,124 +10,7 @@ import { TypedWorkerHost } from './TypedWorkerHost';
 import { IMessage, IUnknownMessage } from '../message';
 import { ILogger } from '../telemetry';
 
-
-type TrackedJobEventData = {
-  tenantId: string;
-  jobId: string;
-  data: IMessage | IUnknownMessage;
-  metadata: {
-    attemptsMade?: number;
-    failedReason?: string;
-    progress?: number | object;
-    statePrev?: JobState;
-    stackTrace?: string[];
-  },
-  createdAt?: DateTime;
-  updatedAt?: DateTime;
-}
-
-/**
- * This queue receives events generated from TrackedProcessors and is
- * used to enqueue updates for the persistent datastore.
- */
-export class TrackedJobEventQueue {
-
-  defaultOptions = {
-    attempts: 5,
-    backoff: { type: 'exponential', delay: 500 },
-    removeOnComplete: true,
-  }
-
-  constructor(@InjectQueue(Providers.TrackedJobEventQueue) public queue: Queue) { }
-
-  trackActive(job: Job, prev: string) {
-    const event = {
-      ...this.buildEvent(job, prev),
-      createdAt: DateTime.fromMillis(job.timestamp),
-      updatedAt: DateTime.fromMillis(job.processedOn!),
-    };
-
-    this.queue.add(JobEvent.active, event, { ...this.defaultOptions });
-  }
-
-  trackCompleted(job: Job, prev: string) {
-    const event = {
-      ...this.buildEvent(job, prev),
-      result: job.returnvalue,
-      createdAt: DateTime.fromMillis(job.finishedOn!),
-    };
-
-    this.queue.add(JobEvent.completed, event, { ...this.defaultOptions });
-  }
-
-  trackFailed(job: Job, error: Error, prev: string) {
-    const event = {
-      ...this.buildEvent(job, prev),
-      createdAt: DateTime.fromMillis(job.finishedOn!),
-    };
-
-    this.queue.add(JobEvent.failed, event, { ...this.defaultOptions });
-  }
-
-  trackProgress(job: Job, progress: number | object ) {
-    const event = {
-      ...this.buildEvent(job, 'active'),
-      createdAt: DateTime.fromMillis(job.processedOn!),
-    };
-
-    this.queue.add(JobEvent.progress, event, { ...this.defaultOptions });
-  }
-
-  trackStalled(job: Job, prev: string ) {
-    const event = {
-      ...this.buildEvent(job, prev),
-      createdAt: DateTime.fromMillis(job.processedOn!),
-    };
-
-    this.queue.add(JobEvent.stalled, event, { ...this.defaultOptions });
-  }
-
-  buildEvent(job: Job, prev?: string): TrackedJobEventData {
-    const progress = this.recalcProgress(job.progress);
-    const event: TrackedJobEventData = {
-      tenantId: job.data.tenantid || 'SYSTEM',
-      jobId: job.id!,
-      data: job.data,
-      metadata: {
-        attemptsMade: job.attemptsMade,
-        ...( job.failedReason ? { failedReason: job.failedReason } : {} ),
-        ...( progress ? { progress } : {} ),
-        ...( prev ? { statePrev: prev as JobState } : {} ),
-        ...( job.stacktrace.length > 0 ? { stacktrace: job.stacktrace } : {} ),
-      },
-    };
-
-    return event;
-  }
-
-  /**
-   * If numeric progress is provided we ensure that it is factored into a percentile
-   * friendly range between 0.0 and 1.0. Otherwise return an object or undefined.
-   */
-  recalcProgress(progress?: number | object) {
-    if(typeof(progress) === 'object') return progress;
-
-    if(typeof(progress) !== 'number') return undefined;
-
-    if(progress === 0.0) return undefined;
-
-    if(progress > 0.0 && progress <= 1.0)
-      return progress;
-
-    if(progress > 1.0 && progress <= 100.0)
-      return progress / 100.0;
-
-    if(progress > 100.0)
-      return { value: progress };
-
-    return undefined;
-  }
-}
+import type { TrackedJobEventData, TrackedJobEventDataCompact, TrackedJobEventDataFull } from './TrackedJobEventQueue';
 
 /**
  * This worker processes events generated from TrackedProcessors and is
@@ -145,25 +28,27 @@ export class TrackedJobEventProcessor extends TypedWorkerHost<TrackedJobEventDat
   };
 
   async process(job: Job<TrackedJobEventData>): Promise<any> {
-    console.warn(`Job ${job.id} Processing: ${job.data.jobId} ${job.name}`);
+    this.logger.debug(`Job ${job.id} Processing: ${job.data.jobId} ${job.name}`);
 
     switch(job.name) {
       case JobEvent.active:
-        return this.onJobActive(job.data);
+        return this.onJobActive(job.data as TrackedJobEventDataFull);
       case JobEvent.completed:
-        return this.onJobCompleted(job.data);
+        return this.onJobCompleted(job.data as TrackedJobEventDataFull);
       case JobEvent.failed:
-        return this.onJobFailed(job.data);
+        return this.onJobFailed(job.data as TrackedJobEventDataFull);
       case JobEvent.progress:
-        return this.onJobProgress(job.data)
+        return this.onJobProgress(job.data as TrackedJobEventDataFull)
       case JobEvent.stalled:
-        return this.onJobStalled(job.data)
+        return this.onJobStalled(job.data as TrackedJobEventDataFull)
+      case JobEvent.delayed:
+        return this.onJobDelayed(job.data as TrackedJobEventDataCompact)
       default:
         throw new Error(`Unsupported Job Event State: ${job.name}`);
     }
   }
 
-  async onJobActive(event: TrackedJobEventData): Promise<any> {
+  async onJobActive(event: TrackedJobEventDataFull): Promise<any> {
     this.logger.info(`Job ${event.jobId} Active`, event);
 
     const exists = await this.repository.findJobById({
@@ -190,13 +75,13 @@ export class TrackedJobEventProcessor extends TypedWorkerHost<TrackedJobEventDat
       jobId: event.jobId,
       createdAt: event.updatedAt,
       event: JobEvent.active,
-      state: JobState.active,
+      state: event.state,
       metadata: event.metadata,
     });
   }
 
 
-  async onJobCompleted(event: TrackedJobEventData): Promise<any> {
+  async onJobCompleted(event: TrackedJobEventDataFull): Promise<any> {
     this.logger.info(`Job ${event.jobId} Completed`, event);
 
     const { progress, ...restOfMetadata } = event.metadata;
@@ -213,14 +98,37 @@ export class TrackedJobEventProcessor extends TypedWorkerHost<TrackedJobEventDat
       jobId: event.jobId,
       createdAt: event.createdAt,
       event: JobEvent.completed,
-      state: JobState.completed,
+      state: event.state,
       metadata: typeof(progress) !== 'object'
         ? { ...restOfMetadata, progress: 1.0 }
         : event.metadata,
     });
   }
 
-  async onJobFailed(event: TrackedJobEventData): Promise<any> {
+  async onJobDelayed(event: TrackedJobEventDataCompact): Promise<any> {
+    const job = await this.repository.findJobByJobId(event.jobId)
+
+    // const queue = new Queue(job.queueId);
+    // const jobLive = await queue.getJob(job.jobId);
+    // const jobLogs = await queue.getJobLogs(job.jobId);
+
+    // console.debug(`Live Job ${job.jobId}:`, JSON.stringify(jobLive, null, 2));
+
+    const { ...restOfMetadata } = event.metadata;
+
+    const delayed = await this.repository.updateTrackedJob({
+      tenantId: job.tenantId,
+      jobId: job.jobId,
+      createdAt: event.createdAt,
+      event: JobEvent.delayed,
+      state: JobState.waiting,
+      metadata: { ...restOfMetadata, statePrev: job.state }
+      // log: jobLogs.count > 0 ? jobLogs.logs.join(`/n`) : undefined,
+    });
+
+  }
+
+  async onJobFailed(event: TrackedJobEventDataFull): Promise<any> {
     this.logger.error(`Job ${event.jobId} Failed`, event);
 
     const updated = await this.repository.updateTrackedJob({
@@ -228,12 +136,12 @@ export class TrackedJobEventProcessor extends TypedWorkerHost<TrackedJobEventDat
       jobId: event.jobId,
       createdAt: event.createdAt,
       event: JobEvent.failed,
-      state: JobState.failed,
+      state: event.state,
       metadata: event.metadata,
     });
   }
 
-  async onJobProgress(event: TrackedJobEventData): Promise<any> {
+  async onJobProgress(event: TrackedJobEventDataFull): Promise<any> {
     this.logger.debug(`Job ${event.jobId} Progress`, event);
 
     const updated = await this.repository.updateTrackedJob({
@@ -241,12 +149,12 @@ export class TrackedJobEventProcessor extends TypedWorkerHost<TrackedJobEventDat
       jobId: event.jobId,
       createdAt: event.createdAt,
       event: JobEvent.progress,
-      state: JobState.active,
+      state: event.state,
       metadata: event.metadata,
     });
   }
 
-  async onJobStalled(event: TrackedJobEventData): Promise<any> {
+  async onJobStalled(event: TrackedJobEventDataFull): Promise<any> {
     this.logger.debug(`Job ${event.jobId} Stalled`, event);
 
     const updated = await this.repository.updateTrackedJob({
@@ -254,7 +162,7 @@ export class TrackedJobEventProcessor extends TypedWorkerHost<TrackedJobEventDat
       jobId: event.jobId,
       createdAt: event.createdAt,
       event: JobEvent.stalled,
-      state: JobState.stalled,
+      state: event.state,
       metadata: event.metadata,
     });
   }
