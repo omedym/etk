@@ -97,35 +97,34 @@ class QueueListener extends QueueEventsHost {
     this.logs.push(`[${entry}] ${message}`);
   }
 
-  _onAdded(jobId: string, name: string) { this.log(`Job ${jobId} Added: ${name}`) };
-  _onCompleted(jobId: string, returnvalue: string) { this.log(`Job ${jobId} Completed: ${returnvalue}`) };
-  _onDelayed(jobId: string, delay: number) { this.log(`Job ${jobId} Delayed: ${DateTime.fromMillis(Number(delay)).toISO()}`) };
-  _onError(error: Error) { this.log(`Queue Error: ${error.name}, ${error.message}, ${error.cause}`) };
-  _onPaused() { this.log(`Queue Paused`) };
-  _onResumed() { this.log(`Queue Resumed`) };
+  onAdded(jobId: string, name: string) { this.log(`Job ${jobId} Added: ${name}`) };
+  onCompleted(jobId: string, returnvalue: string) { this.log(`Job ${jobId} Completed: ${returnvalue}`) };
+  onDelayed(jobId: string, delay: number) { this.log(`Job ${jobId} Delayed: ${DateTime.fromMillis(Number(delay)).toISO()}`) };
+  onError(error: Error) { this.log(`Queue Error: ${error.name}, ${error.message}, ${error.cause}`) };
+  onPaused() { this.log(`Queue Paused`) };
+  onResumed() { this.log(`Queue Resumed`) };
 
   @OnQueueEvent('added')
   // @Transaction('onQueueEvent-added')
-  onAdded(event: { jobId: string, name: string }, id: string) { this._onAdded(event.jobId, event.name) }
+  _onAdded(event: { jobId: string, name: string }, id: string) { this.onAdded(event.jobId, event.name) }
 
   @OnQueueEvent('completed')
   // @Transaction('onQueueEvent-completed')
-  onCompleted(event: { jobId: string, returnvalue: string, prev?: string}, id: string) {
-    this._onCompleted(event.jobId, event.returnvalue);
+  _onCompleted(event: { jobId: string, returnvalue: string, prev?: string}, id: string) {
+    this.onCompleted(event.jobId, event.returnvalue);
   }
-
   @OnQueueEvent('delayed')
   // @Transaction('onQueueEvent-delayed')
-  onDelayed(event: { jobId: string, delay: number }, id: string) { this._onDelayed(event.jobId, event.delay) }
+  _onDelayed(event: { jobId: string, delay: number }, id: string) { this.onDelayed(event.jobId, event.delay) }
 
   @OnQueueEvent('error')
-  onError(event: Error) { this._onError(event) }
+  _onError(event: Error) { this.onError(event) }
 
   @OnQueueEvent('paused')
-  onPaused() { this._onPaused(); }
+  _onPaused() { this.onPaused(); }
 
   @OnQueueEvent('resumed')
-  onResumed() { this._onResumed(); }
+  _onResumed() { this.onResumed(); }
 }
 
 describe('BullMQ Processor', () => {
@@ -155,12 +154,12 @@ describe('BullMQ Processor', () => {
       },
       queue: {
         onLog: jest.spyOn(target.queueListener, 'log'),
-        onAdded: jest.spyOn(target.queueListener, '_onAdded'),
-        onCompleted: jest.spyOn(target.queueListener, '_onCompleted'),
-        onDelayed: jest.spyOn(target.queueListener, '_onDelayed'),
-        onError: jest.spyOn(target.queueListener, '_onError'),
-        onPaused: jest.spyOn(target.queueListener, '_onPaused'),
-        onResumed: jest.spyOn(target.queueListener, '_onResumed'),
+        onAdded: jest.spyOn(target.queueListener, 'onAdded'),
+        onCompleted: jest.spyOn(target.queueListener, 'onCompleted'),
+        onDelayed: jest.spyOn(target.queueListener, 'onDelayed'),
+        onError: jest.spyOn(target.queueListener, 'onError'),
+        onPaused: jest.spyOn(target.queueListener, 'onPaused'),
+        onResumed: jest.spyOn(target.queueListener, 'onResumed'),
       },
       external: {
         getResult: jest.spyOn(target.externalService, 'getResult')
