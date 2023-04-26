@@ -41,7 +41,7 @@ const TestConfig = {
     delayMs: process.env.TESTCONFIG__BULLMQ__DELAY_MS
       ? Number(process.env.TESTCONFIG__BULLMQ__DELAY_MS) : 1000 * 2,
     showLogs: process.env.TESTCONFIG__BULLMQ__SHOWLOGS
-    ? Boolean(process.env.TESTCONFIG__BULLMQ__SHOWLOGS) : false,
+    ? Boolean(process.env.TESTCONFIG__BULLMQ__SHOWLOGS) : true,
   },
   jest: {
     timeoutMs: process.env.TESTCONFIG__JEST__TIMEOUT_MS
@@ -54,9 +54,10 @@ const execAsync = promisify(exec);
 
 const mockLogger = {
   info: jest.fn(),
+  // info: (x: any) => console.info(x),
   requestLogger: jest.fn(),
   matchFilePartRegEx: jest.fn(),
-  log: jest.fn(),
+  // log: jest.fn(),
   warn: jest.fn(),
   // warn: (x: any) => console.warn(x),
   error: jest.fn(),
@@ -79,28 +80,28 @@ class QueueListener extends QueueEventsHost {
     this.logs.push(`[${entry}] ${message}`);
   }
 
-  _onAdded(jobId: string, name: string) { this.log(`Job ${jobId} Added: ${name}`) };
-  _onCompleted(jobId: string, returnvalue: string) { this.log(`Job ${jobId} Completed: ${returnvalue}`) };
-  _onDelayed(jobId: string, delay: number) { this.log(`Job ${jobId} Delayed: ${delay}`)}
-  _onPaused() { this.log(`Queue Paused`) };
-  _onResumed() { this.log(`Queue Resumed`) };
+  onAdded(jobId: string, name: string) { this.log(`Job ${jobId} Added: ${name}`) };
+  onCompleted(jobId: string, returnvalue: string) { this.log(`Job ${jobId} Completed: ${returnvalue}`) };
+  onDelayed(jobId: string, delay: number) { this.log(`Job ${jobId} Delayed: ${delay}`)}
+  onPaused() { this.log(`Queue Paused`) };
+  onResumed() { this.log(`Queue Resumed`) };
 
   @OnQueueEvent('added')
-  onAdded(event: { jobId: string, name: string }, id: string) { this._onAdded(event.jobId, event.name) }
+  _onAdded(event: { jobId: string, name: string }, id: string) { this.onAdded(event.jobId, event.name) }
 
   @OnQueueEvent('completed')
-  onCompleted(event: { jobId: string, returnvalue: string, prev?: string}, id: string) {
-    this._onCompleted(event.jobId, event.returnvalue);
+  _onCompleted(event: { jobId: string, returnvalue: string, prev?: string}, id: string) {
+    this.onCompleted(event.jobId, event.returnvalue);
   }
 
   @OnQueueEvent('delayed')
-  onDelayed(event: { jobId: string, delay: number }, id: string) { this._onDelayed(event.jobId, event.delay) }
+  _onDelayed(event: { jobId: string, delay: number }, id: string) { this.onDelayed(event.jobId, event.delay) }
 
   @OnQueueEvent('paused')
-  onPaused() { this._onPaused(); }
+  _onPaused() { this.onPaused(); }
 
   @OnQueueEvent('resumed')
-  onResumed() { this._onResumed(); }
+  _onResumed() { this.onResumed(); }
 }
 
 type MessageJobData = { id: string; tenantid: string; data: object };
@@ -148,11 +149,11 @@ describe('TrackedProcessor', () => {
       },
       queue: {
         onLog: jest.spyOn(target.queueListener, 'log'),
-        onAdded: jest.spyOn(target.queueListener, '_onAdded'),
-        onCompleted: jest.spyOn(target.queueListener, '_onCompleted'),
-        onDelayed: jest.spyOn(target.queueListener, '_onDelayed'),
-        onPaused: jest.spyOn(target.queueListener, '_onPaused'),
-        onResumed: jest.spyOn(target.queueListener, '_onResumed'),
+        onAdded: jest.spyOn(target.queueListener, 'onAdded'),
+        onCompleted: jest.spyOn(target.queueListener, 'onCompleted'),
+        onDelayed: jest.spyOn(target.queueListener, 'onDelayed'),
+        onPaused: jest.spyOn(target.queueListener, 'onPaused'),
+        onResumed: jest.spyOn(target.queueListener, 'onResumed'),
       },
       showListenerLogs: () => TestConfig.bullMq.showLogs && console.warn(`listener.logs`, JSON.stringify(listener.logs, null, 2)),
   }};
@@ -214,6 +215,7 @@ describe('TrackedProcessor', () => {
 
     /** The `lastEventId` setting is critical for ensuring the listener captures events that occurred before initialization */
     @QueueEventsListener(QUEUE_NAME, { lastEventId: '0-0', connection: redisConnectionOptions })
+    @QueueEventsListener(Providers.TrackedJobEventQueue, { lastEventId: '0-0', connection: redisConnectionOptions })
     class TestQueueListener extends QueueListener { }
 
     @QueueEventsListener(Providers.TrackedJobEventQueue, { lastEventId: '0-0', connection: redisConnectionOptions })
@@ -333,13 +335,20 @@ describe('TrackedProcessor', () => {
     });
 
     it('can track a job being completed', async () => {
-      const jobId = createId();
-      producer.queue.add(jobId, generateTestMessage({ someText: 'abc', someNum: 123 }), { jobId: jobId });
+      const spies = insertQueueSpies();
+      const moreSpies = insertQueueSpies({ queueListener: trackedJobEventListener });
 
+      const jobId = createId();
+      producer.queue.add(jobId, generateTestMessage({ someText: 'abc', someNum: 123 }), { jobId: jobId, attempts: 5 });
+
+      await processor.worker.delay(TestConfig.bullMq.delayMs);
       await trackedJobEventProcessor.worker.delay(TestConfig.bullMq.delayMs);
 
+      spies.showListenerLogs();
+      moreSpies.showListenerLogs();
+
       const result = await repository.findJobById({ tenantId: '!!', jobId });
-      console.debug(JSON.stringify(result, null, 2));
+      console.debug(JSON.stringify(result, null, 5));
 
       expect(result).toBeDefined();
       expect(result!.events!.length).toEqual(3);
