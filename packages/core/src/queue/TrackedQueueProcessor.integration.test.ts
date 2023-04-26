@@ -46,32 +46,28 @@ const TestConfig = {
     delayMs: process.env.TESTCONFIG__BULLMQ__DELAY_MS
       ? Number(process.env.TESTCONFIG__BULLMQ__DELAY_MS) : 1000 * 2,
     showLogs: process.env.TESTCONFIG__BULLMQ__SHOWLOGS
-      ? Boolean(process.env.TESTCONFIG__BULLMQ__SHOWLOGS) : false,
+      ? Boolean(process.env.TESTCONFIG__BULLMQ__SHOWLOGS) : true,
   },
   jest: {
     timeoutMs: process.env.TESTCONFIG__JEST__TIMEOUT_MS
-      ? Number(process.env.TESTCONFIG__JEST__TIMEOUT_MS) : 1000 * 10,
+      ? Number(process.env.TESTCONFIG__JEST__TIMEOUT_MS) : 1000 * 15,
   },
-  sentry: {
-    dsn: process.env.SENTRY_DSN
-      ? process.env.SENTRY_DSN : undefined
-  }
 };
 
 const runfiles = new Runfiles(process.env);
 const execAsync = promisify(exec);
 
 const mockLogger = {
-  info: jest.fn(),
-  // info: (x: any) => console.info(x),
+  // info: jest.fn(),
+  info: (x: any) => console.info(x),
   requestLogger: jest.fn(),
   matchFilePartRegEx: jest.fn(),
   // log: jest.fn(),
   warn: jest.fn(),
   // warn: (x: any) => console.warn(x),
   error: jest.fn(),
-  debug: jest.fn(),
-  // debug: (x: any) => console.debug(x),
+  // debug: jest.fn(),
+  debug: (x: any) => console.debug(x),
 } as unknown as ILogger;
 
 /** Monitor A BullMQ Queue Using BullMQ Queue Events */
@@ -89,15 +85,14 @@ class QueueListener extends QueueEventsHost {
     this.logs.push(`[${entry}] ${message}`);
   }
 
-  onAdded(jobId: string, name: string, id: string) { this.log(`Job ${jobId} Added: ${name} id: ${id}`) };
+  onAdded(jobId: string, name: string) { this.log(`Job ${jobId} Added: ${name}`) };
   onCompleted(jobId: string, returnvalue: string) { this.log(`Job ${jobId} Completed: ${returnvalue}`) };
-  onDelayed(jobId: string, delay: number, id: string) { this.log(`Job ${jobId} Delayed: ${DateTime.fromMillis(Number(delay)).toISO()} id: ${id}`) };
-  onError(error: Error) { this.log(`Queue Error: ${error.name}, ${error.message}, ${error.cause}`) };
+  onDelayed(jobId: string, delay: number) { this.log(`Job ${jobId} Delayed: ${delay}`)}
   onPaused() { this.log(`Queue Paused`) };
   onResumed() { this.log(`Queue Resumed`) };
 
   @OnQueueEvent('added')
-  _onAdded(event: { jobId: string, name: string }, id: string) { this.onAdded(event.jobId, event.name, id) }
+  _onAdded(event: { jobId: string, name: string }, id: string) { this.onAdded(event.jobId, event.name) }
 
   @OnQueueEvent('completed')
   _onCompleted(event: { jobId: string, returnvalue: string, prev?: string}, id: string) {
@@ -105,39 +100,13 @@ class QueueListener extends QueueEventsHost {
   }
 
   @OnQueueEvent('delayed')
-  _onDelayed(event: { jobId: string, delay: number }, id: string) { this.onDelayed(event.jobId, event.delay, id) }
-
-  @OnQueueEvent('error')
-  _onError(event: Error) { this.onError(event) }
+  _onDelayed(event: { jobId: string, delay: number }, id: string) { this.onDelayed(event.jobId, event.delay) }
 
   @OnQueueEvent('paused')
   _onPaused() { this.onPaused(); }
 
   @OnQueueEvent('resumed')
   _onResumed() { this.onResumed(); }
-}
-
-/** Monitor A BullMQ Queue Using BullMQ Queue Events */
-class TestTrackedQueueListener extends TrackedQueueListener {
-  logs: string[] = [`[000] Queue Listener Start`];
-
-  log(message: string) {
-    const next = this.logs.length;
-    const entry = next > 99
-      ? next
-      : next > 9
-        ? `0${next}`
-        : `00${next}`;
-
-    this.logs.push(`[${entry}] ${message}`);
-  }
-
-  override async onAdded(jobId: string, name: string) { this.log(`Job ${jobId} Added: ${name}`) };
-  override async onCompleted(jobId: string, returnvalue: string) { this.log(`Job ${jobId} Completed: ${returnvalue}`) };
-  override async onDelayed(jobId: string, delay: number, id: string) { this.log(`Job ${jobId} Delayed: ${DateTime.fromMillis(Number(delay)).toISO()} id: ${id}`) };
-  override async onError(error: Error) { this.log(`Queue Error: ${error.name}, ${error.message}, ${error.cause}`) };
-  override async onPaused() { this.log(`Queue Paused`) };
-  override async onResumed() { this.log(`Queue Resumed`) };
 }
 
 type MessageJobData = { id: string; tenantid: string; data: object };
@@ -161,15 +130,13 @@ describe('TrackedProcessor', () => {
 
   let trackedJobEventProcessor: TrackedJobEventProcessor;
   let trackedJobEventListener: QueueListener;
+  let trackedQueues: TrackedQueueListener;
 
-  let listener: TestTrackedQueueListener;
+  let listener: QueueListener;
   let processor: TrackedQueueProcessor;
-  let producer: { queue: Queue };
-
-  let delayedListener: TestTrackedQueueListener;
   let delayedProcessor: TrackedQueueProcessor;
+  let producer: { queue: Queue };
   let delayedProducer: { queue: Queue };
-
   let repository: TrackedQueueRepository;
 
   let DATABASE_URL_POSTGRES: string;
@@ -178,7 +145,7 @@ describe('TrackedProcessor', () => {
   process.env = { ...env };
 
   const insertQueueSpies = (options?: {
-    queueListener?: QueueListener | TestTrackedQueueListener;
+    queueListener?: QueueListener;
   }) => {
     const target = {
       queueListener: options?.queueListener || listener,
@@ -193,13 +160,10 @@ describe('TrackedProcessor', () => {
         onAdded: jest.spyOn(target.queueListener, 'onAdded'),
         onCompleted: jest.spyOn(target.queueListener, 'onCompleted'),
         onDelayed: jest.spyOn(target.queueListener, 'onDelayed'),
-        onError: jest.spyOn(target.queueListener, 'onError'),
         onPaused: jest.spyOn(target.queueListener, 'onPaused'),
         onResumed: jest.spyOn(target.queueListener, 'onResumed'),
       },
-
-      showListenerLogs: (warn: boolean = false) => (warn || TestConfig.bullMq.showLogs)
-        && console.warn(JSON.stringify(target.queueListener.logs, null, 2)),
+      showListenerLogs: () => TestConfig.bullMq.showLogs && console.warn(`listener.logs`, JSON.stringify(listener.logs, null, 2)),
   }};
 
   beforeAll(async ()  => {
@@ -263,7 +227,7 @@ describe('TrackedProcessor', () => {
 
         const runAt = DateTime.now().plus(Duration.fromISO('PT1S'));
         job.moveToDelayed(runAt.toMillis(), token);
-        throw new DelayedError(`Job ${job.id} delayed until ${runAt.toISO()}`);
+        throw new DelayedError();
       }
     }
 
@@ -276,12 +240,17 @@ describe('TrackedProcessor', () => {
     }
 
     /** The `lastEventId` setting is critical for ensuring the listener captures events that occurred before initialization */
+    @QueueEventsListener(QUEUE_NAME, { lastEventId: '0-0', connection: redisConnectionOptions })
+    @QueueEventsListener(DELAYED_QUEUE_NAME, { lastEventId: '0-0', connection: redisConnectionOptions })
+    @QueueEventsListener(Providers.TrackedJobEventQueue, { lastEventId: '0-0', connection: redisConnectionOptions })
+    class TestQueueListener extends QueueListener { }
+
     @QueueEventsListener(Providers.TrackedJobEventQueue, { lastEventId: '0-0', connection: redisConnectionOptions })
     class TrackedJobEventListener extends QueueListener { }
-    @QueueEventsListener(QUEUE_NAME, { lastEventId: '0-0', connection: redisConnectionOptions })
-    class TestQueueListener extends TestTrackedQueueListener { }
+
     @QueueEventsListener(DELAYED_QUEUE_NAME, { lastEventId: '0-0', connection: redisConnectionOptions })
-    class TestDelayedQueueListener extends TestTrackedQueueListener { }
+    @QueueEventsListener(QUEUE_NAME, { lastEventId: '0-0', connection: redisConnectionOptions })
+    class TrackedQueues extends TrackedQueueListener { }
 
     const moduleRef = await Test.createTestingModule({
       imports: [
@@ -290,7 +259,6 @@ describe('TrackedProcessor', () => {
         BullModule.registerQueue({ name: QUEUE_NAME }),
         BullModule.registerQueue({ name: DELAYED_QUEUE_NAME }),
         RepositoryPostgresModule.forRoot({ databaseUrl: DATABASE_URL_POSTGRES, assetBucket: '' }),
-        // SentryModule,
       ],
       providers: [
         TestDelayedQueue,
@@ -302,44 +270,34 @@ describe('TrackedProcessor', () => {
         TrackedJobEventProcessor,
         TrackedJobEventQueue,
         TrackedQueueRepository,
-        TestDelayedQueueListener,
+        TrackedQueues,
         { provide: Providers.ILogger, useValue: mockLogger },
       ],
     }).compile();
 
     app = moduleRef.createNestApplication();
 
-    trackedJobEventListener = moduleRef.get<TrackedJobEventListener>(TrackedJobEventListener);
     trackedJobEventProcessor = moduleRef.get<TrackedJobEventProcessor>(TrackedJobEventProcessor);
+    trackedJobEventListener = moduleRef.get<TrackedJobEventListener>(TrackedJobEventListener);
 
-    listener = moduleRef.get<TestQueueListener>(TestQueueListener);
+    trackedQueues = moduleRef.get<TrackedQueues>(TrackedQueues);
+
     processor = moduleRef.get<TestTrackedProcessor>(TestTrackedProcessor);
     producer = moduleRef.get<TestQueue>(TestQueue);
 
-    delayedListener = moduleRef.get<TestDelayedQueueListener>(TestDelayedQueueListener);
     delayedProcessor = moduleRef.get<TestDelayedTrackedProcessor>(TestDelayedTrackedProcessor);
     delayedProducer = moduleRef.get<TestDelayedQueue>(TestDelayedQueue);
 
+    listener = moduleRef.get<TestQueueListener>(TestQueueListener);
     repository = moduleRef.get<TrackedQueueRepository>(TrackedQueueRepository);
 
-    // app.get<SentryService>(SentryService).initSentryWithApp(app, {
-    //   tags: {
-    //     service: 'types-messaging',
-    //   },
-    //   debug: false,
-    //   transport: sentryTransport,
-    //   dsn: TestConfig.sentry.dsn,
-    // });
     await app.init();
-
-    await trackedJobEventListener.queueEvents.waitUntilReady();
     await trackedJobEventProcessor.worker.waitUntilReady();
-
-    await listener.queueEvents.waitUntilReady();
+    await trackedJobEventListener.queueEvents.waitUntilReady();
+    await trackedQueues.queueEvents.waitUntilReady();
     await processor.worker.waitUntilReady();
-
-    await delayedListener.queueEvents.waitUntilReady();
     await delayedProcessor.worker.waitUntilReady();
+    await listener.queueEvents.waitUntilReady();
   });
 
   afterEach(async () => {
@@ -376,7 +334,7 @@ describe('TrackedProcessor', () => {
     });
 
     it('can receive emitted event: added', async () => {
-      const spies = insertQueueSpies({ queueListener: listener });
+      const spies = insertQueueSpies();
 
       const cuid = createId();
       const jobId1 = cuid + '-1';
@@ -420,6 +378,7 @@ describe('TrackedProcessor', () => {
 
     it('can track a job being completed', async () => {
       const spies = insertQueueSpies();
+      const moreSpies = insertQueueSpies({ queueListener: trackedJobEventListener });
 
       const jobId = createId();
       producer.queue.add(jobId, generateTestMessage({ someText: 'abc', someNum: 123 }), { jobId: jobId, attempts: 5 });
@@ -428,6 +387,7 @@ describe('TrackedProcessor', () => {
       await trackedJobEventProcessor.worker.delay(TestConfig.bullMq.delayMs);
 
       // spies.showListenerLogs();
+      // moreSpies.showListenerLogs();
 
       const result = await repository.findJobById({ tenantId: '!!', jobId });
       // console.debug(JSON.stringify(result, null, 2));
@@ -438,15 +398,17 @@ describe('TrackedProcessor', () => {
     });
 
     it('can track a job being delayed and completed', async () => {
-      const spies = insertQueueSpies({ queueListener: delayedListener });
+      const spies = insertQueueSpies();
+      const moreSpies = insertQueueSpies({ queueListener: trackedJobEventListener });
 
       const jobId = createId();
       delayedProducer.queue.add(jobId, generateTestMessage({ someText: 'abc', someNum: 123 }), { jobId: jobId, attempts: 5 });
 
       await delayedProcessor.worker.delay(TestConfig.bullMq.delayMs);
-      await trackedJobEventProcessor.worker.delay(TestConfig.bullMq.delayMs * 3);
+      await trackedJobEventProcessor.worker.delay(TestConfig.bullMq.delayMs * 2);
 
       // spies.showListenerLogs();
+      // moreSpies.showListenerLogs();
 
       const result = await repository.findJobById({ tenantId: '!!', jobId });
       // console.debug(JSON.stringify(result, null, 2));
