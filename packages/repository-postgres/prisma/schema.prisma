@@ -25,12 +25,35 @@ enum JobDataType {
 }
 
 enum JobEvent {
-  active
-  completed
-  delayed
-  failed
-  stalled
-  progress
+  queueJobActive
+  queueJobAdded
+  queueCleaned
+  queueJobCompleted
+  queueJobDelayed
+  queueDrained
+  queueJobDuplicated
+  queueError
+  queueJobFailed
+  queuePaused
+  queueJobProgress
+  queueJobRemoved
+  queueResumed
+  queueJobRetriesExhausted
+  queueJobStalled
+  queueJobWaiting
+  queueJobWaitingChildren
+  workerJobActive
+  workerClosed
+  workerClosing
+  workerJobCompleted
+  workerDrained
+  workerError
+  workerJobFailed
+  workerPaused
+  workerJobProgress
+  workerReady
+  workerResumed
+  workerJobStalled
   unknown
   @@schema("dmq")
 }
@@ -70,7 +93,6 @@ model TrackedQueueJob {
 
   @@id([tenantId, jobId])
   @@unique([jobId])
-
   @@index([jobId])
   @@index([tenantId, dataId, queueGroupId, queueId, jobId, updatedAt(sort: Desc), state])
   @@index([tenantId, queueGroupId, queueId, jobId, updatedAt(sort: Desc), state])

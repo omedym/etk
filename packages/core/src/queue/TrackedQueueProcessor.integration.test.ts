@@ -43,7 +43,7 @@ const TestConfig = {
     delayMs: process.env.TESTCONFIG__BULLMQ__DELAY_MS
       ? Number(process.env.TESTCONFIG__BULLMQ__DELAY_MS) : 1000 * 2,
     showLogs: process.env.TESTCONFIG__BULLMQ__SHOWLOGS
-      ? Boolean(process.env.TESTCONFIG__BULLMQ__SHOWLOGS) : false,
+      ? Boolean(process.env.TESTCONFIG__BULLMQ__SHOWLOGS) : true,
   },
   jest: {
     timeoutMs: process.env.TESTCONFIG__JEST__TIMEOUT_MS
@@ -55,16 +55,17 @@ const runfiles = new Runfiles(process.env);
 const execAsync = promisify(exec);
 
 const mockLogger = {
-  info: jest.fn(),
-  // info: (x: any) => console.info(x),
   requestLogger: jest.fn(),
   matchFilePartRegEx: jest.fn(),
+  info: jest.fn(),
+  // info: (x: any) => console.info(x),
   // log: jest.fn(),
-  warn: jest.fn(),
-  // warn: (x: any) => console.warn(x),
-  error: jest.fn(),
+  // warn: jest.fn(),
+  warn: (x: any, y: any) => console.warn(x, y),
+  // error: jest.fn(),
+  error: (message: string, error: Error) => console.error(message, error),
   debug: jest.fn(),
-  // debug: (x: any) => console.debug(x),
+  // debug: (x: any, y: any) => console.debug(x, y),
 } as unknown as ILogger;
 
 /** Monitor A BullMQ Queue Using BullMQ Queue Events */
@@ -220,8 +221,8 @@ describe('TrackedProcessor', () => {
     const prismaSchemaFile = `${prismaSchemaPath}/schema.prisma`;
 
     DATABASE_URL_POSTGRES = `postgresql://postgres`
-    + `:postgres@${postgresHost}:${postgresPort}`
-    + `/${postgresDbName}?schema=${postgresDbSchema}`;
+      + `:postgres@${postgresHost}:${postgresPort}`
+      + `/${postgresDbName}?schema=${postgresDbSchema}`;
 
     const PRISMA_QUERY_ENGINE_LIBRARY = `${prismaSchemaPath}`;
 
@@ -436,7 +437,7 @@ describe('TrackedProcessor', () => {
       // console.debug(JSON.stringify(result, null, 2));
 
       expect(result).toBeDefined();
-      expect(result!.events!.length).toEqual(7);
+      expect(result!.events!.length).toEqual(5);
       expect(result!.state).toEqual('completed');
     });
   });

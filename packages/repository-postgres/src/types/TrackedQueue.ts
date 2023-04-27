@@ -5,7 +5,6 @@ import {
   JobDataType,
 } from '@omedym/nestjs-dmq-postgres-client';
 
-
 export interface ITrackedQueueJob<T extends object = {}> {
   tenantId: string;
   queueGroupId: string | null;
@@ -45,6 +44,7 @@ export type CreateTrackedJobParams<T extends object = {}> =
   Omit<ITrackedQueueJob<T>, 'createdAt' | 'jobId' | 'updatedAt' | 'events'> & {
     jobId?: string,
     createdAt?: DateTime,
+    event?: JobEvent,
   }
 
 export type UpdateTrackedJobParams<T extends object = {}> =
