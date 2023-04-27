@@ -1,13 +1,12 @@
-import { InjectQueue, Processor } from '@nestjs/bullmq';
+import { Processor, getQueueToken } from '@nestjs/bullmq';
 import { Inject, Injectable } from '@nestjs/common';
+import { ModuleRef } from '@nestjs/core';
 import { Job, Queue } from 'bullmq';
-import { DateTime } from 'luxon';
 
 import { JobEvent, JobState, TrackedQueueRepository } from '@omedym/nestjs-dmq-repository-postgres';
 
 import { Providers } from '../providers';
 import { TypedWorkerHost } from './TypedWorkerHost';
-import { IMessage, IUnknownMessage } from '../message';
 import { ILogger } from '../telemetry';
 
 import type { TrackedJobEventData, TrackedJobEventDataCompact, TrackedJobEventDataFull } from './TrackedJobEventQueue';
@@ -22,6 +21,7 @@ export class TrackedJobEventProcessor extends TypedWorkerHost<TrackedJobEventDat
 
   constructor(
     readonly repository: TrackedQueueRepository,
+    private moduleRef: ModuleRef,
     @Inject(Providers.ILogger) readonly logger: ILogger,
   ) {
     super();
@@ -54,6 +54,7 @@ export class TrackedJobEventProcessor extends TypedWorkerHost<TrackedJobEventDat
 
   async onWorkerJobActive(event: TrackedJobEventDataFull): Promise<any> {
     this.logger.info(`Job ${event.jobId} Active`, event);
+    const jobAndLog = await this.fetchJobAndLog(event.queueId, event.tenantId, event.jobId);
 
     const exists = await this.repository.findJobById({
       tenantId: event.tenantId,
@@ -72,6 +73,7 @@ export class TrackedJobEventProcessor extends TypedWorkerHost<TrackedJobEventDat
         dataId: event.data.id,
         data: event.data,
         createdAt: event.createdAt,
+        log: jobAndLog.log,
       });
     }
 
@@ -81,12 +83,15 @@ export class TrackedJobEventProcessor extends TypedWorkerHost<TrackedJobEventDat
       createdAt: event.updatedAt,
       event: JobEvent.workerJobActive,
       state: event.state,
-      metadata: event.metadata,
+      metadata: { ...event.metadata, log: jobAndLog.log, queueId: event.queueId },
+      log: jobAndLog.log,
     });
   }
 
   async onWorkerJobCompleted(event: TrackedJobEventDataFull): Promise<any> {
     this.logger.info(`Job ${event.jobId} Completed`, event);
+
+    const jobAndLog = await this.fetchJobAndLog(event.queueId, event.tenantId, event.jobId);
 
     const { progress, ...restOfMetadata } = event.metadata;
 
@@ -104,13 +109,15 @@ export class TrackedJobEventProcessor extends TypedWorkerHost<TrackedJobEventDat
       event: JobEvent.workerJobCompleted,
       state: event.state,
       metadata: typeof(progress) !== 'object'
-        ? { ...restOfMetadata, progress: 1.0 }
-        : event.metadata,
+        ? { ...restOfMetadata, log: jobAndLog.log, progress: 1.0, queueId: event.queueId }
+        : { ...event.metadata, log: jobAndLog.log, queueId: event.queueId }
     });
   }
 
   async onWorkerJobFailed(event: TrackedJobEventDataFull): Promise<any> {
     this.logger.error(`Job ${event.jobId} Failed`, event);
+
+    const jobAndLog = await this.fetchJobAndLog(event.queueId, event.tenantId, event.jobId);
 
     const updated = await this.repository.updateTrackedJob({
       tenantId: event.tenantId,
@@ -118,12 +125,15 @@ export class TrackedJobEventProcessor extends TypedWorkerHost<TrackedJobEventDat
       createdAt: event.createdAt,
       event: JobEvent.workerJobFailed,
       state: event.state,
-      metadata: event.metadata,
+      metadata: { ...event.metadata, log: jobAndLog.log, queueId: event.queueId },
+      log: jobAndLog.log,
     });
   }
 
   async onWorkerJobProgress(event: TrackedJobEventDataFull): Promise<any> {
     this.logger.debug(`Job ${event.jobId} Progress`, event);
+
+    const jobAndLog = await this.fetchJobAndLog(event.queueId, event.tenantId, event.jobId);
 
     const updated = await this.repository.updateTrackedJob({
       tenantId: event.tenantId,
@@ -131,12 +141,15 @@ export class TrackedJobEventProcessor extends TypedWorkerHost<TrackedJobEventDat
       createdAt: event.createdAt,
       event: JobEvent.workerJobProgress,
       state: event.state,
-      metadata: event.metadata,
+      metadata: { ...event.metadata, log: jobAndLog.log, queueId: event.queueId },
+      log: jobAndLog.log,
     });
   }
 
   async onWorkerJobStalled(event: TrackedJobEventDataFull): Promise<any> {
     this.logger.debug(`Job ${event.jobId} Stalled`, event);
+
+    const jobAndLog = await this.fetchJobAndLog(event.queueId, event.tenantId, event.jobId);
 
     const updated = await this.repository.updateTrackedJob({
       tenantId: event.tenantId,
@@ -144,12 +157,17 @@ export class TrackedJobEventProcessor extends TypedWorkerHost<TrackedJobEventDat
       createdAt: event.createdAt,
       event: JobEvent.workerJobStalled,
       state: event.state,
-      metadata: event.metadata,
+      metadata: { ...event.metadata, log: jobAndLog.log, queueId: event.queueId },
+      log: jobAndLog.log,
     });
   }
 
   async onQueueJobDelayed(event: TrackedJobEventDataCompact): Promise<any> {
     this.logger.debug(`Job ${event.jobId} Delayed`, event);
+
+    const job = await this.repository.findJobByJobId(event.jobId)
+    const jobAndLog = await this.fetchJobAndLog(job.queueId, job.tenantId, job.jobId);
+
     const { ...restOfMetadata } = event.metadata;
 
     const delayed = await this.repository.updateTrackedJob({
@@ -160,8 +178,38 @@ export class TrackedJobEventProcessor extends TypedWorkerHost<TrackedJobEventDat
       state: JobState.waiting,
       metadata: {
         ...restOfMetadata,
+        attemptsMade: jobAndLog.job?.attemptsMade,
+        log: jobAndLog.log,
         queueId: event.queueId,
+        statePrev: job.state,
       },
+      log: jobAndLog.log,
     });
+  }
+
+  async fetchJobAndLog(queueId: string, tenantId: string, jobId: string) {
+    try {
+      const queueToken = getQueueToken(queueId);
+
+      this.logger.debug(`Connect to tracked queue: ${queueId} with queueToken: ${queueToken}`, { tenantId, jobId, queueId })
+      const queue = this.moduleRef.get<Queue>(queueToken, { strict: false });
+
+      this.logger.debug(`Fetch jobId: ${jobId}`, { tenantId, jobId, queueId });
+      const job = await queue.getJob(jobId);
+
+      this.logger.debug(`Fetch job logs for jobId: ${jobId}`, { tenantId, jobId, queueId });
+      const jobLog = await queue.getJobLogs(jobId!);
+
+      const jobAndLog = {
+        job: job,
+        log: jobLog.count > 0 ? jobLog.logs.join('\n') : undefined,
+      }
+
+      return jobAndLog;
+    }
+    catch(error: any) {
+      this.logger.error(error.message, error);
+      return { job: undefined, log: undefined };
+    }
   }
 }

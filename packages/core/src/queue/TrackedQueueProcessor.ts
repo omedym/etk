@@ -25,6 +25,7 @@ export abstract class TrackedQueueProcessor<
   };
 
   async process(job: Job<T>, token?: string): Promise<any> {
+    job.log(`Job ${job.id} Processing: ${job.name}`);
     this.logger.info(`Job ${job.id} Processing: ${job.name}`);
   }
 
