@@ -1,14 +1,16 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { createId } from '@paralleldrive/cuid2';
 import { DateTime } from 'luxon';
+
 import { providers } from'./providers';
 import { PrismaService } from './prisma.service';
 import {
   FindJobByIdParams,
   CreateTrackedJobParams,
   ITrackedQueueJob,
-  UpdateTrackedJobParams as UpdateTrackedJobParams,
+  UpdateTrackedJobParams,
 } from './types';
+
 
 @Injectable()
 export class TrackedQueueRepository {
@@ -41,7 +43,7 @@ export class TrackedQueueRepository {
   }
 
   async trackJob<T extends object>(jobToTrack: CreateTrackedJobParams<T>): Promise<ITrackedQueueJob<T>> {
-    const { createdAt, ...eventData } = jobToTrack;
+    const { createdAt, event, ...eventData } = jobToTrack;
     const timestampAt = createdAt && createdAt.isValid ? createdAt : DateTime.now();
     const trackedJob = await this.prisma.trackedQueueJob.create({
       data: {
@@ -51,8 +53,8 @@ export class TrackedQueueRepository {
 
         events: {
           create: [{
-            event: 'active',
-            state: eventData.state,
+            event: jobToTrack.event,
+            state: jobToTrack.state,
             createdAt: timestampAt.toJSDate(),
           }],
         },

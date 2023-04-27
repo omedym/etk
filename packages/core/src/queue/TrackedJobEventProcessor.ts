@@ -31,24 +31,28 @@ export class TrackedJobEventProcessor extends TypedWorkerHost<TrackedJobEventDat
     this.logger.debug(`Job ${job.id} Processing: ${job.data.jobId} ${job.name}`);
 
     switch(job.name) {
-      case JobEvent.active:
-        return this.onJobActive(job.data as TrackedJobEventDataFull);
-      case JobEvent.completed:
-        return this.onJobCompleted(job.data as TrackedJobEventDataFull);
-      case JobEvent.failed:
-        return this.onJobFailed(job.data as TrackedJobEventDataFull);
-      case JobEvent.progress:
-        return this.onJobProgress(job.data as TrackedJobEventDataFull)
-      case JobEvent.stalled:
-        return this.onJobStalled(job.data as TrackedJobEventDataFull)
-      case JobEvent.delayed:
-        return this.onJobDelayed(job.data as TrackedJobEventDataCompact)
+      // Worker Events
+      case JobEvent.workerJobActive:
+        return this.onWorkerJobActive(job.data as TrackedJobEventDataFull);
+      case JobEvent.workerJobCompleted:
+        return this.onWorkerJobCompleted(job.data as TrackedJobEventDataFull);
+      case JobEvent.workerJobFailed:
+        return this.onWorkerJobFailed(job.data as TrackedJobEventDataFull);
+      case JobEvent.workerJobProgress:
+        return this.onWorkerJobProgress(job.data as TrackedJobEventDataFull)
+      case JobEvent.workerJobStalled:
+        return this.onWorkerJobStalled(job.data as TrackedJobEventDataFull)
+
+      // Queue Events
+      case JobEvent.queueJobDelayed:
+        return this.onQueueJobDelayed(job.data as TrackedJobEventDataCompact)
+
       default:
         throw new Error(`Unsupported Job Event State: ${job.name}`);
     }
   }
 
-  async onJobActive(event: TrackedJobEventDataFull): Promise<any> {
+  async onWorkerJobActive(event: TrackedJobEventDataFull): Promise<any> {
     this.logger.info(`Job ${event.jobId} Active`, event);
 
     const exists = await this.repository.findJobById({
@@ -62,6 +66,7 @@ export class TrackedJobEventProcessor extends TypedWorkerHost<TrackedJobEventDat
         queueGroupId: 'queueGroup',
         queueId: 'queue',
         jobId: event.jobId,
+        event: JobEvent.workerJobActive,
         state: 'waiting',
         dataType: 'message',
         dataId: event.data.id,
@@ -74,14 +79,13 @@ export class TrackedJobEventProcessor extends TypedWorkerHost<TrackedJobEventDat
       tenantId: event.tenantId,
       jobId: event.jobId,
       createdAt: event.updatedAt,
-      event: JobEvent.active,
+      event: JobEvent.workerJobActive,
       state: event.state,
       metadata: event.metadata,
     });
   }
 
-
-  async onJobCompleted(event: TrackedJobEventDataFull): Promise<any> {
+  async onWorkerJobCompleted(event: TrackedJobEventDataFull): Promise<any> {
     this.logger.info(`Job ${event.jobId} Completed`, event);
 
     const { progress, ...restOfMetadata } = event.metadata;
@@ -97,7 +101,7 @@ export class TrackedJobEventProcessor extends TypedWorkerHost<TrackedJobEventDat
       tenantId: event.tenantId,
       jobId: event.jobId,
       createdAt: event.createdAt,
-      event: JobEvent.completed,
+      event: JobEvent.workerJobCompleted,
       state: event.state,
       metadata: typeof(progress) !== 'object'
         ? { ...restOfMetadata, progress: 1.0 }
@@ -105,65 +109,58 @@ export class TrackedJobEventProcessor extends TypedWorkerHost<TrackedJobEventDat
     });
   }
 
-  async onJobDelayed(event: TrackedJobEventDataCompact): Promise<any> {
-    const job = await this.repository.findJobByJobId(event.jobId)
-
-    // const queue = new Queue(job.queueId);
-    // const jobLive = await queue.getJob(job.jobId);
-    // const jobLogs = await queue.getJobLogs(job.jobId);
-
-    // console.debug(`Live Job ${job.jobId}:`, JSON.stringify(jobLive, null, 2));
-
-    const { ...restOfMetadata } = event.metadata;
-
-    const delayed = await this.repository.updateTrackedJob({
-      tenantId: job.tenantId,
-      jobId: job.jobId,
-      createdAt: event.createdAt,
-      event: JobEvent.delayed,
-      state: JobState.waiting,
-      metadata: { ...restOfMetadata, statePrev: job.state }
-      // log: jobLogs.count > 0 ? jobLogs.logs.join(`/n`) : undefined,
-    });
-
-  }
-
-  async onJobFailed(event: TrackedJobEventDataFull): Promise<any> {
+  async onWorkerJobFailed(event: TrackedJobEventDataFull): Promise<any> {
     this.logger.error(`Job ${event.jobId} Failed`, event);
 
     const updated = await this.repository.updateTrackedJob({
       tenantId: event.tenantId,
       jobId: event.jobId,
       createdAt: event.createdAt,
-      event: JobEvent.failed,
+      event: JobEvent.workerJobFailed,
       state: event.state,
       metadata: event.metadata,
     });
   }
 
-  async onJobProgress(event: TrackedJobEventDataFull): Promise<any> {
+  async onWorkerJobProgress(event: TrackedJobEventDataFull): Promise<any> {
     this.logger.debug(`Job ${event.jobId} Progress`, event);
 
     const updated = await this.repository.updateTrackedJob({
       tenantId: event.tenantId,
       jobId: event.jobId,
       createdAt: event.createdAt,
-      event: JobEvent.progress,
+      event: JobEvent.workerJobProgress,
       state: event.state,
       metadata: event.metadata,
     });
   }
 
-  async onJobStalled(event: TrackedJobEventDataFull): Promise<any> {
+  async onWorkerJobStalled(event: TrackedJobEventDataFull): Promise<any> {
     this.logger.debug(`Job ${event.jobId} Stalled`, event);
 
     const updated = await this.repository.updateTrackedJob({
       tenantId: event.tenantId,
       jobId: event.jobId,
       createdAt: event.createdAt,
-      event: JobEvent.stalled,
+      event: JobEvent.workerJobStalled,
       state: event.state,
       metadata: event.metadata,
+    });
+  }
+
+  async onQueueJobDelayed(event: TrackedJobEventDataCompact): Promise<any> {
+    this.logger.debug(`Job ${event.jobId} Delayed`, event);
+    const { ...restOfMetadata } = event.metadata;
+
+    const delayed = await this.repository.updateTrackedJob({
+      tenantId: event.tenantId,
+      jobId: event.jobId,
+      createdAt: event.createdAt,
+      event: JobEvent.queueJobDelayed,
+      state: JobState.waiting,
+      metadata: {
+        ...restOfMetadata,
+      },
     });
   }
 }

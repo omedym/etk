@@ -29,6 +29,7 @@ export type TrackedJobEventDataFull = {
 }
 
 export type TrackedJobEventDataCompact = {
+  tenantId: string;
   jobId: string;
   metadata: {
     delay?: number;
@@ -61,7 +62,7 @@ export class TrackedJobEventQueue {
       updatedAt: DateTime.fromMillis(job.processedOn!),
     };
 
-    this.queue.add(JobEvent.active, event, { ...this.defaultOptions });
+    this.queue.add(JobEvent.workerJobActive, event, { ...this.defaultOptions });
   }
 
   async trackCompleted(job: Job, prev: string) {
@@ -71,7 +72,7 @@ export class TrackedJobEventQueue {
       createdAt: DateTime.fromMillis(job.finishedOn!),
     };
 
-    this.queue.add(JobEvent.completed, event, { ...this.defaultOptions });
+    this.queue.add(JobEvent.workerJobCompleted, event, { ...this.defaultOptions });
   }
 
   async trackDelayed(jobId: string, delay: number) {
@@ -85,7 +86,7 @@ export class TrackedJobEventQueue {
       createdAt: DateTime.now(),
     };
 
-    this.queue.add(JobEvent.delayed, event, { ...this.defaultOptions });
+    this.queue.add(JobEvent.queueJobDelayed, event, { ...this.defaultOptions });
   }
 
   async trackFailed(job: Job, error: Error, prev: string) {
@@ -94,7 +95,7 @@ export class TrackedJobEventQueue {
       createdAt: DateTime.fromMillis(job.finishedOn!),
     };
 
-    this.queue.add(JobEvent.failed, event, { ...this.defaultOptions });
+    this.queue.add(JobEvent.workerJobFailed, event, { ...this.defaultOptions });
   }
 
   async trackProgress(job: Job, progress: number | object ) {
@@ -103,7 +104,7 @@ export class TrackedJobEventQueue {
       createdAt: DateTime.fromMillis(job.processedOn!),
     };
 
-    this.queue.add(JobEvent.progress, event, { ...this.defaultOptions });
+    this.queue.add(JobEvent.workerJobProgress, event, { ...this.defaultOptions });
   }
 
   async trackStalled(job: Job, prev: string ) {
@@ -112,7 +113,7 @@ export class TrackedJobEventQueue {
       createdAt: DateTime.fromMillis(job.processedOn!),
     };
 
-    this.queue.add(JobEvent.stalled, event, { ...this.defaultOptions });
+    this.queue.add(JobEvent.workerJobStalled, event, { ...this.defaultOptions });
   }
 
   async buildTrackEventFromWorkerEvent(job: Job, prev?: string): Promise<TrackedJobEventData> {
