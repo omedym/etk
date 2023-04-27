@@ -11,6 +11,7 @@ import { IMessage, IUnknownMessage } from '../message';
 export type TrackedJobEventData = TrackedJobEventDataFull | TrackedJobEventDataCompact;
 
 export type TrackedJobEventDataFull = {
+  queueId: string;
   tenantId: string;
   jobId: string;
   data: IMessage | IUnknownMessage;
@@ -29,6 +30,7 @@ export type TrackedJobEventDataFull = {
 }
 
 export type TrackedJobEventDataCompact = {
+  queueId: string;
   tenantId: string;
   jobId: string;
   metadata: {
@@ -75,8 +77,9 @@ export class TrackedJobEventQueue {
     this.queue.add(JobEvent.workerJobCompleted, event, { ...this.defaultOptions });
   }
 
-  async trackDelayed(jobId: string, delay: number) {
+  async trackDelayed(queueId: string, jobId: string, delay: number) {
     const event = {
+      queueId,
       jobId,
       metadata: {
         delay: delay,
@@ -119,6 +122,7 @@ export class TrackedJobEventQueue {
   async buildTrackEventFromWorkerEvent(job: Job, prev?: string): Promise<TrackedJobEventData> {
     const progress = this.recalcProgress(job.progress);
     const event: TrackedJobEventData = {
+      queueId: job.queueName,
       tenantId: job.data.tenantid || 'SYSTEM',
       jobId: job.id!,
       data: job.data,

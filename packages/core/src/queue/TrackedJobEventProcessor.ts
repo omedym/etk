@@ -64,7 +64,7 @@ export class TrackedJobEventProcessor extends TypedWorkerHost<TrackedJobEventDat
       const created = await this.repository.trackJob({
         tenantId: event.tenantId,
         queueGroupId: 'queueGroup',
-        queueId: 'queue',
+        queueId: event.queueId,
         jobId: event.jobId,
         event: JobEvent.workerJobActive,
         state: 'waiting',
@@ -160,6 +160,7 @@ export class TrackedJobEventProcessor extends TypedWorkerHost<TrackedJobEventDat
       state: JobState.waiting,
       metadata: {
         ...restOfMetadata,
+        queueId: event.queueId,
       },
     });
   }
