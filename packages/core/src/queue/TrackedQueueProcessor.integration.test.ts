@@ -251,6 +251,7 @@ describe('TrackedProcessor', () => {
     @Processor(DELAYED_QUEUE_NAME)
     class TestDelayedTrackedProcessor extends TrackedQueueProcessor<TestJobData> {
       override async process(job: Job<TestJobData>, token?: string) {
+        job.log(`Job ${job.id} Processing: ${job.name}`);
         this.logger.info(`Job ${job.id} Processing: ${job.name}`);
 
         if (job.attemptsMade > 2) return;
