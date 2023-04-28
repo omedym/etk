@@ -23,6 +23,7 @@ export type TrackedJobEventDataFull = {
     failedReason?: string;
     progress?: number | object;
     runAt?: string;
+    receivedAt?: string;
     stackTrace?: string[];
   },
   createdAt?: DateTime;
@@ -76,16 +77,19 @@ export class TrackedJobEventQueue {
     this.queue.add(JobEvent.workerJobCompleted, event, { ...this.defaultOptions });
   }
 
-  async trackDelayed(queueId: string, jobId: string, delay: number) {
+  async trackDelayed(queueId: string, jobId: string, delay: number, id: string) {
+    const timestampAt = DateTime.now();
+    // const createdAt = DateTime.fromMillis(+id.replace('-0', ''));
+
     const event = {
       queueId,
       jobId,
       metadata: {
         delay: delay,
-        // runAt: DateTime.fromMillis(delay).toISO(),
-        statePrev: JobState.active,
+        receivedAt: timestampAt.toISO(),
+        runAt: DateTime.fromMillis(+delay).toISO(),
       },
-      createdAt: DateTime.now(),
+      createdAt: timestampAt.toISO(),
     };
 
     this.queue.add(JobEvent.queueJobDelayed, event, { ...this.defaultOptions });
@@ -129,6 +133,7 @@ export class TrackedJobEventQueue {
       statePrev: prev ? prev as JobState : JobState.unknown,
       metadata: {
         attemptsMade: job.attemptsMade,
+        receivedAt: DateTime.now().toISO(),
         ...( job.failedReason ? { failedReason: job.failedReason } : {} ),
         ...( progress ? { progress } : {} ),
         ...( job.stacktrace.length > 0 ? { stacktrace: job.stacktrace } : {} ),

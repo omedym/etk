@@ -47,6 +47,7 @@ export type CreateTrackedJobParams<T extends object = {}> =
     jobId?: string,
     createdAt?: DateTime,
     event?: JobEvent,
+    log?: string[],
   }
 
 export type UpdateTrackedJobParams<T extends object = {}> =
