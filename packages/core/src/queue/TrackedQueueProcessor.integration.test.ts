@@ -251,12 +251,19 @@ describe('TrackedProcessor', () => {
     @Processor(DELAYED_QUEUE_NAME)
     class TestDelayedTrackedProcessor extends TrackedQueueProcessor<TestJobData> {
       override async process(job: Job<TestJobData>, token?: string) {
-        job.log(`Job ${job.id} Processing: ${job.name}`);
+        job.log(`${DateTime.now().toISO()} Processing - Starting`);
         this.logger.info(`Job ${job.id} Processing: ${job.name}`);
 
-        if (job.attemptsMade > 2) return;
+        if (job.attemptsMade > 2) {
+          job.log(`${DateTime.now().toISO()} Processing - Complete`);
+          return;
+        }
 
         const runAt = DateTime.now().plus(Duration.fromISO('PT1S'));
+
+        job.log(`${DateTime.now().toISO()} Processing - Delayed Until ${runAt.toISO()}`);
+        this.logger.info(`Job ${job.id} Processing - Delayed Until ${runAt.toISO()}`);
+
         job.moveToDelayed(runAt.toMillis(), token);
         throw new DelayedError(`Job ${job.id} delayed until ${runAt.toISO()}`);
       }

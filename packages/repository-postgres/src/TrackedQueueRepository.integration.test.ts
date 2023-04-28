@@ -145,13 +145,15 @@ describe('TrackedQueueRepository', () => {
     jobId: string,
     event: JobEvent,
     state: JobState,
-    log?: string,
+    statePrev: JobState,
+    log?: string[],
   ): UpdateTrackedJobParams<T> => {
     return {
       tenantId: 'SYSTEM',
       jobId,
       event,
       state,
+      statePrev,
       log,
     }
   }
@@ -195,6 +197,7 @@ describe('TrackedQueueRepository', () => {
         jobEventId: createId(),
         event: JobEvent.workerJobCompleted,
         state: JobState.completed,
+        statePrev: JobState.active,
       }
 
       const result = await SUT.updateTrackedJob(eventThatOccurred);
@@ -212,7 +215,9 @@ describe('TrackedQueueRepository', () => {
       const jobToTrack: CreateTrackedJobParams<TestJobData> = createJobToTrackJson(testJobData);
       const trackedJob = await SUT.trackJob(jobToTrack);
 
-      const result = await SUT.updateTrackedJob(createUpdateJobJson(trackedJob.jobId, 'workerJobCompleted', 'completed'));
+      const result = await SUT.updateTrackedJob(
+        createUpdateJobJson(trackedJob.jobId, 'workerJobCompleted', 'completed', 'active')
+      );
 
       expect(result).toBeDefined();
       expect(result?.events?.length).toEqual(2);
@@ -256,12 +261,24 @@ describe('TrackedQueueRepository', () => {
       const jobToTrack: CreateTrackedJobParams<TestJobData> = createJobToTrackJson(testJobData);
       const trackedJob = await SUT.trackJob(jobToTrack);
 
-      await SUT.updateTrackedJob(createUpdateJobJson(trackedJob.jobId, 'workerJobActive', 'active'));
-      await SUT.updateTrackedJob(createUpdateJobJson(trackedJob.jobId, 'queueJobDelayed', 'active'));
-      await SUT.updateTrackedJob(createUpdateJobJson(trackedJob.jobId, 'workerJobActive', 'active'));
-      await SUT.updateTrackedJob(createUpdateJobJson(trackedJob.jobId, 'workerJobFailed', 'failed'));
-      await SUT.updateTrackedJob(createUpdateJobJson(trackedJob.jobId, 'workerJobActive', 'active'));
-      await SUT.updateTrackedJob(createUpdateJobJson(trackedJob.jobId, 'workerJobCompleted', 'completed'));
+      await SUT.updateTrackedJob(
+        createUpdateJobJson(trackedJob.jobId, 'workerJobActive', 'active', 'unknown')
+      );
+      await SUT.updateTrackedJob(
+        createUpdateJobJson(trackedJob.jobId, 'queueJobDelayed', 'active', 'active')
+      );
+      await SUT.updateTrackedJob(
+        createUpdateJobJson(trackedJob.jobId, 'workerJobActive', 'active', 'waiting')
+      );
+      await SUT.updateTrackedJob(
+        createUpdateJobJson(trackedJob.jobId, 'workerJobFailed', 'failed', 'active')
+      );
+      await SUT.updateTrackedJob(
+        createUpdateJobJson(trackedJob.jobId, 'workerJobActive', 'active', 'waiting')
+      );
+      await SUT.updateTrackedJob(
+        createUpdateJobJson(trackedJob.jobId, 'workerJobCompleted', 'completed', 'active')
+      );
 
       const result = await SUT.findJobById<ITrackedQueueJob<TestJobData>>(
         { tenantId: trackedJob.tenantId, jobId: trackedJob.jobId }
@@ -279,19 +296,27 @@ describe('TrackedQueueRepository', () => {
       const jobToTrack: CreateTrackedJobParams<TestJobData> = createJobToTrackJson(testJobData);
       const trackedJob = await SUT.trackJob(jobToTrack);
 
-      let log: string = '';
+      let log: string[] = [];
 
-      log = log + `${DateTime.now().toISO()} Job Updated To Active\n`;
-      await SUT.updateTrackedJob(createUpdateJobJson(trackedJob.jobId, 'workerJobActive', 'active', log));
+      log.push(`${DateTime.now().toISO()} Job Updated To Active`);
+      await SUT.updateTrackedJob(
+        createUpdateJobJson(trackedJob.jobId, 'workerJobActive', 'active', 'unknown', log)
+      );
 
-      log = log + `${DateTime.now().toISO()} Job Updated To Delayed\n`;
-      await SUT.updateTrackedJob(createUpdateJobJson(trackedJob.jobId, 'queueJobDelayed', 'active', log));
+      log.push(`${DateTime.now().toISO()} Job Updated To Delayed`);
+      await SUT.updateTrackedJob(
+        createUpdateJobJson(trackedJob.jobId, 'queueJobDelayed', 'waiting', 'active', log)
+      );
 
-      log = log + `${DateTime.now().toISO()} Job Updated To Active\n`;
-      await SUT.updateTrackedJob(createUpdateJobJson(trackedJob.jobId, 'workerJobActive', 'active', log));
+      log.push(`${DateTime.now().toISO()} Job Updated To Active`);
+      await SUT.updateTrackedJob(
+        createUpdateJobJson(trackedJob.jobId, 'workerJobActive', 'active', 'waiting', log)
+      );
 
-      log = log + `${DateTime.now().toISO()} Job Updated To Completed\n`;
-      await SUT.updateTrackedJob(createUpdateJobJson(trackedJob.jobId, 'workerJobCompleted', 'completed', log));
+      log.push(`${DateTime.now().toISO()} Job Updated To Completed`);
+      await SUT.updateTrackedJob(
+        createUpdateJobJson(trackedJob.jobId, 'workerJobCompleted', 'completed', 'active', log)
+      );
 
       const result = await SUT.findJobById<ITrackedQueueJob<TestJobData>>(
         { tenantId: trackedJob.tenantId, jobId: trackedJob.jobId }

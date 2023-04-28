@@ -16,7 +16,7 @@ export interface ITrackedQueueJob<T extends object = {}> {
   data: T;
   metadata?: any;
   result?: any;
-  log?: string;
+  log: string[];
   createdAt: Date;
   updatedAt: Date;
 
@@ -29,7 +29,9 @@ export interface ITrackedQueueJobEvent<T extends object = {}> {
   jobEventId: string;
   event: JobEvent;
   state: JobState;
+  statePrev: JobState;
   metadata?: object;
+  log: string[];
   createdAt: Date;
 
   job?: ITrackedQueueJob<T>;
@@ -41,15 +43,15 @@ export type FindJobByIdParams = {
 }
 
 export type CreateTrackedJobParams<T extends object = {}> =
-  Omit<ITrackedQueueJob<T>, 'createdAt' | 'jobId' | 'updatedAt' | 'events'> & {
+  Omit<ITrackedQueueJob<T>, 'createdAt' | 'jobId' | 'log' | 'updatedAt' | 'events'> & {
     jobId?: string,
     createdAt?: DateTime,
     event?: JobEvent,
   }
 
 export type UpdateTrackedJobParams<T extends object = {}> =
-  Omit<ITrackedQueueJobEvent<T>, 'createdAt' | 'jobEventId' | 'job'> & {
+  Omit<ITrackedQueueJobEvent<T>, 'createdAt' | 'jobEventId' | 'job' | 'log'> & {
     jobEventId?: string,
     createdAt?: DateTime,
-    log?: string,
+    log?: string[],
   }
