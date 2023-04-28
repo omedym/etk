@@ -43,7 +43,7 @@ export class TrackedQueueRepository {
   }
 
   async trackJob<T extends object>(jobToTrack: CreateTrackedJobParams<T>): Promise<ITrackedQueueJob<T>> {
-    const { createdAt, event, ...eventData } = jobToTrack;
+    const { createdAt, event, log, ...eventData } = jobToTrack;
     const timestampAt = createdAt && createdAt.isValid ? createdAt : DateTime.now();
     const trackedJob = await this.prisma.trackedQueueJob.create({
       data: {
@@ -55,6 +55,7 @@ export class TrackedQueueRepository {
           create: [{
             event: jobToTrack.event,
             state: jobToTrack.state,
+            metadata: eventData.metadata,
             createdAt: timestampAt.toJSDate(),
           }],
         },
@@ -80,6 +81,7 @@ export class TrackedQueueRepository {
     const JobEventToCreate = {
       ...eventData,
       createdAt: timestampAt.toJSDate(),
+      log,
     }
 
     const trackedJob = await this.prisma.trackedQueueJob.update({

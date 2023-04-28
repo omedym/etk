@@ -34,7 +34,7 @@ export abstract class TrackedQueueListener extends QueueEventsHost {
   // @Transaction('onQueueEvent-delayed')
   async _onDelayed(event: { jobId: string, delay: number }, id: string) {
     this.logger.info(`Queue Job Delayed jobId: ${event.jobId} delay: ${event.delay} id: ${id}`);
-    this.jobEventQueue.trackDelayed(this.queueEvents.name, event.jobId, event.delay);
+    this.jobEventQueue.trackDelayed(this.queueEvents.name, event.jobId, event.delay, id);
 
     this.onDelayed(event.jobId, event.delay, id);
   }
