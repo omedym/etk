@@ -84,7 +84,7 @@ model TrackedQueueJob {
   data                      Json?               @db.JsonB
   metadata                  Json?               @db.JsonB
   result                    Json?               @db.JsonB
-  log                       String?             @db.Text
+  log                       String[]            @db.Text
 
   createdAt                 DateTime            @db.Timestamptz(6) @default(now())
   updatedAt                 DateTime            @db.Timestamptz(6) @default(now()) @updatedAt
@@ -107,7 +107,9 @@ model TrackedQueueJobEvent {
 
   event                     JobEvent            @default(unknown)
   state                     JobState            @default(unknown)
+  statePrev                 JobState            @default(unknown)
   metadata                  Json?               @db.JsonB
+  log                       String[]            @db.Text
 
   createdAt                 DateTime            @db.Timestamptz(6) @default(now())
 

@@ -73,7 +73,6 @@ export class TrackedJobEventProcessor extends TypedWorkerHost<TrackedJobEventDat
         dataId: event.data.id,
         data: event.data,
         createdAt: event.createdAt,
-        log: jobAndLog.log,
       });
     }
 
@@ -83,7 +82,12 @@ export class TrackedJobEventProcessor extends TypedWorkerHost<TrackedJobEventDat
       createdAt: event.updatedAt,
       event: JobEvent.workerJobActive,
       state: event.state,
-      metadata: { ...event.metadata, log: jobAndLog.log, queueId: event.queueId },
+      statePrev: event.statePrev,
+      metadata: {
+        ...event.metadata,
+        log: jobAndLog.log,
+        queueId: event.queueId,
+      },
       log: jobAndLog.log,
     });
   }
@@ -108,6 +112,7 @@ export class TrackedJobEventProcessor extends TypedWorkerHost<TrackedJobEventDat
       createdAt: event.createdAt,
       event: JobEvent.workerJobCompleted,
       state: event.state,
+      statePrev: event.statePrev,
       metadata: typeof(progress) !== 'object'
         ? { ...restOfMetadata, log: jobAndLog.log, progress: 1.0, queueId: event.queueId }
         : { ...event.metadata, log: jobAndLog.log, queueId: event.queueId }
@@ -125,6 +130,7 @@ export class TrackedJobEventProcessor extends TypedWorkerHost<TrackedJobEventDat
       createdAt: event.createdAt,
       event: JobEvent.workerJobFailed,
       state: event.state,
+      statePrev: event.statePrev,
       metadata: { ...event.metadata, log: jobAndLog.log, queueId: event.queueId },
       log: jobAndLog.log,
     });
@@ -141,6 +147,7 @@ export class TrackedJobEventProcessor extends TypedWorkerHost<TrackedJobEventDat
       createdAt: event.createdAt,
       event: JobEvent.workerJobProgress,
       state: event.state,
+      statePrev: event.statePrev,
       metadata: { ...event.metadata, log: jobAndLog.log, queueId: event.queueId },
       log: jobAndLog.log,
     });
@@ -157,6 +164,7 @@ export class TrackedJobEventProcessor extends TypedWorkerHost<TrackedJobEventDat
       createdAt: event.createdAt,
       event: JobEvent.workerJobStalled,
       state: event.state,
+      statePrev: event.statePrev,
       metadata: { ...event.metadata, log: jobAndLog.log, queueId: event.queueId },
       log: jobAndLog.log,
     });
@@ -176,12 +184,12 @@ export class TrackedJobEventProcessor extends TypedWorkerHost<TrackedJobEventDat
       createdAt: event.createdAt,
       event: JobEvent.queueJobDelayed,
       state: JobState.waiting,
+      statePrev: job.state,
       metadata: {
         ...restOfMetadata,
         attemptsMade: jobAndLog.job?.attemptsMade,
         log: jobAndLog.log,
         queueId: event.queueId,
-        statePrev: job.state,
       },
       log: jobAndLog.log,
     });
@@ -202,7 +210,7 @@ export class TrackedJobEventProcessor extends TypedWorkerHost<TrackedJobEventDat
 
       const jobAndLog = {
         job: job,
-        log: jobLog.count > 0 ? jobLog.logs.join('\n') : undefined,
+        log: jobLog.logs,
       }
 
       return jobAndLog;

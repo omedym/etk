@@ -16,13 +16,13 @@ export type TrackedJobEventDataFull = {
   jobId: string;
   data: IMessage | IUnknownMessage;
   state: JobState,
+  statePrev: JobState;
   metadata: {
     attemptsMade?: number;
     delay?: number;
     failedReason?: string;
     progress?: number | object;
     runAt?: string;
-    statePrev?: JobState;
     stackTrace?: string[];
   },
   createdAt?: DateTime;
@@ -36,7 +36,6 @@ export type TrackedJobEventDataCompact = {
   metadata: {
     delay?: number;
     failedReason?: string;
-    statePrev?: JobState;
     runAt?: string;
   },
   createdAt?: DateTime;
@@ -127,11 +126,11 @@ export class TrackedJobEventQueue {
       jobId: job.id!,
       data: job.data,
       state: await job.getState() as JobState,
+      statePrev: prev ? prev as JobState : JobState.unknown,
       metadata: {
         attemptsMade: job.attemptsMade,
         ...( job.failedReason ? { failedReason: job.failedReason } : {} ),
         ...( progress ? { progress } : {} ),
-        ...( prev ? { statePrev: prev as JobState } : {} ),
         ...( job.stacktrace.length > 0 ? { stacktrace: job.stacktrace } : {} ),
       },
     };
@@ -140,9 +139,9 @@ export class TrackedJobEventQueue {
   }
 
   /**
-   * If numeric progress is provided we ensure that it is factored into a percentile
-   * friendly range between 0.0 and 1.0. Otherwise return an object or undefined.
-   */
+     * If numeric progress is provided we ensure that it is factored into a percentile
+     * friendly range between 0.0 and 1.0. Otherwise return an object or undefined.
+     */
   recalcProgress(progress?: number | object) {
     if(typeof(progress) === 'object') return progress;
 
