@@ -3,5 +3,4 @@ export interface IRepositoryPostgresServiceOptions {
   assetBucket?: string;
 }
 
-export const DefaultRepositoryPostgresServiceOptions: IRepositoryPostgresServiceOptions =
-  {};
+export const DefaultRepositoryPostgresServiceOptions: IRepositoryPostgresServiceOptions = {};
