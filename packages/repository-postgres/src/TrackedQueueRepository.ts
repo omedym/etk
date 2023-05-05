@@ -39,7 +39,7 @@ export class TrackedQueueRepository {
       }
     })) ;
 
-    return job as ITrackedQueueJob<T>;
+    return job as unknown as ITrackedQueueJob<T>;
   }
 
   async trackJob<T extends object>(jobToTrack: CreateTrackedJobParams<T>): Promise<ITrackedQueueJob<T>> {
@@ -75,7 +75,7 @@ export class TrackedQueueRepository {
     const jobDataToUpdate = {
       state: eventData.state,
       updatedAt: timestampAt.toJSDate(),
-      ...(log ? { log } : {}), // If provided update the log entry
+      ...(log ? { log } : { log: [] }), // If provided update the log entry
     }
 
     const JobEventToCreate = {

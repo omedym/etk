@@ -31,7 +31,7 @@ export interface ITrackedQueueJobEvent<T extends object = {}> {
   state: JobState;
   statePrev: JobState;
   metadata?: object;
-  log: string[];
+  log?: string[];
   createdAt: Date;
 
   job?: ITrackedQueueJob<T>;
