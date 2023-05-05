@@ -23,7 +23,7 @@ export type TrackedJobEventDataFull = {
     failedReason?: string;
     progress?: number | object;
     runAt?: string;
-    receivedAt?: string;
+    receivedAt?: string | null;
     stackTrace?: string[];
   },
   createdAt?: DateTime;
