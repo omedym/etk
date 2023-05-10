@@ -16,7 +16,9 @@ import {
 export class TrackedQueueRepository {
   constructor(@Inject(providers.PRISMA) private readonly prisma: PrismaService) {}
 
-  async findJobById<T extends object>(jobToFind: FindJobByIdParams): Promise<ITrackedQueueJob<T> | null> {
+  async findJobById<T extends object>(
+    jobToFind: FindJobByIdParams
+  ): Promise<ITrackedQueueJob<T> | null> {
     const job = (await this.prisma.trackedQueueJob.findUnique({
       where: {
          tenantId_jobId: jobToFind,
@@ -29,7 +31,9 @@ export class TrackedQueueRepository {
     return job as ITrackedQueueJob<T>;
   }
 
-  async findJobByJobId<T extends object>(jobId: string): Promise<ITrackedQueueJob<T>> {
+  async findJobByJobId<T extends object>(
+    jobId: string
+  ): Promise<ITrackedQueueJob<T>> {
     const job = (await this.prisma.trackedQueueJob.findUniqueOrThrow({
       where: {
          jobId: jobId,
@@ -42,7 +46,9 @@ export class TrackedQueueRepository {
     return job as unknown as ITrackedQueueJob<T>;
   }
 
-  async trackJob<T extends object>(jobToTrack: CreateTrackedJobParams<T>): Promise<ITrackedQueueJob<T>> {
+  async trackJob<T extends object>(
+    jobToTrack: CreateTrackedJobParams<T>
+  ): Promise<ITrackedQueueJob<T>> {
     const { createdAt, event, log, metadata, ...eventData } = jobToTrack;
     const timestampAt = createdAt && createdAt.isValid ? createdAt : DateTime.now();
     const trackedJob = await this.prisma.trackedQueueJob.create({
@@ -68,7 +74,9 @@ export class TrackedQueueRepository {
     return trackedJob as ITrackedQueueJob<T>;
   }
 
-  async updateTrackedJob<T extends object>(jobToUpdate: UpdateTrackedJobParams): Promise<ITrackedQueueJob<T>> {
+  async updateTrackedJob<T extends object>(
+    jobToUpdate: UpdateTrackedJobParams
+  ): Promise<ITrackedQueueJob<T>> {
     const { tenantId, jobId, createdAt, log, ...eventData } = jobToUpdate;
     const timestampAt = createdAt && createdAt.isValid ? createdAt : DateTime.now();
 
@@ -78,7 +86,7 @@ export class TrackedQueueRepository {
       ...(log ? { log } : { log: [] }), // If provided update the log entry
     }
 
-    const JobEventToCreate = {
+    const jobEventToCreate = {
       ...eventData,
       createdAt: timestampAt.toJSDate(),
       log,
@@ -87,7 +95,7 @@ export class TrackedQueueRepository {
     const trackedJob = await this.prisma.trackedQueueJob.update({
       data: {
         ...jobDataToUpdate,
-        events: { create: [{ ...JobEventToCreate }] },
+        events: { create: [{ ...jobEventToCreate }] },
       },
       include: {
         events: true

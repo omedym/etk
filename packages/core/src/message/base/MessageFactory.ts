@@ -5,7 +5,7 @@ import type { IMessageMetadata } from './MessageMetadata';
 
 import Ajv from 'ajv';
 import crypto from 'crypto';
-import stableStringify from "safe-stable-stringify";
+import stableStringify from 'safe-stable-stringify';
 import { DateTime } from 'luxon';
 import { createId } from '@paralleldrive/cuid2';
 
