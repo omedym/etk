@@ -49,7 +49,7 @@ describe('Gateway', () => {
 
   const TestGatewayDefinition: IQueuedGatewayDefinition = {
     gatewayType: 'message',
-    allows: [TestMessageADefinition],
+    bindings: [{ dir: 'in', msg: TestMessageADefinition }],
     queue: {
       name: 'queueName',
     },

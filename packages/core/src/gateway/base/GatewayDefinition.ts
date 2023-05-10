@@ -8,5 +8,4 @@ import { IMessageDefinition } from '../../message/base/MessageDefinition';
  */
 export interface IGatewayDefinition extends IExchangeDefinition {
   gatewayType: 'command' | 'event' | 'query' | 'message';
-  allows: IMessageDefinition[];
 }

@@ -3,7 +3,6 @@ import { AbstractQueuedGateway, IQueuedGatewayDefinition } from './queued';
 
 export interface ICommandGatewayDefinition extends IQueuedGatewayDefinition {
   gatewayType: 'command';
-  allows: ICommandDefinition[];
 }
 
 export interface ICommandGateway {

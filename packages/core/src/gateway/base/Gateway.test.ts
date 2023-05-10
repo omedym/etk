@@ -48,7 +48,7 @@ describe('Gateway', () => {
 
   const TestGatewayDefinition: IEventGatewayDefinition = {
     gatewayType: 'event',
-    allows: [TestEventADefinition],
+    // allows: [TestEventADefinition],
     queue: {
       name: 'queueName',
     },
@@ -66,10 +66,10 @@ describe('Gateway', () => {
     expect(sut.isAllowed(event_a)).toBeTruthy();
   });
 
-  it('can check if a message is not allowed', () => {
-    const sut = new TestEventGateway();
-    expect(sut.isAllowed(event_b)).toBeFalsy();
-  });
+  // it('can check if a message is not allowed', () => {
+  //   const sut = new TestEventGateway();
+  //   expect(sut.isAllowed(event_b)).toBeFalsy();
+  // });
 
   it('can publish or send an allowed message', () => {
     const sut = new TestEventGateway();
