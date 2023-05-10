@@ -1,8 +1,9 @@
 import type { Queue } from 'bullmq';
 
 import type { IGateway } from '../base';
-import type { IMessage } from '../../message/base';
+import type { IAllowedMessageBinding, IMessage } from '../../message/base';
 import type { IQueuedGatewayDefinition } from './QueuedGatewayDefinition';
+import { MessageDefinition } from '../../message';
 
 export interface IQueuedGateway<T extends IQueuedGatewayDefinition>
   extends IGateway<T> {}
@@ -16,8 +17,15 @@ export abstract class AbstractQueuedGateway<T extends IQueuedGatewayDefinition =
   isAllowed<T extends IMessage>(
     message: T,
   ): boolean {
-    const allowed = this.definition.allows
-      .find(m => m.cloudEvent.type == message.type);
+    const bindings = this.definition.bindings?.filter(b => b.dir == 'in');
+
+    if (!bindings || bindings.length == 0)
+      return true;
+
+    const allowed = bindings.find(b => typeof b.msg !== 'string'
+      ? (b.msg as unknown as MessageDefinition).cloudEvent.type == message.type
+      : b.msg == message.type
+    );
 
     if (allowed) return true;
 

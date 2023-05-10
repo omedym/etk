@@ -3,7 +3,6 @@ import { AbstractQueuedGateway, IQueuedGatewayDefinition } from '../gateway/queu
 
 export interface IEventGatewayDefinition extends IQueuedGatewayDefinition {
   gatewayType: 'event';
-  allows: IEventDefinition[];
 }
 
 export interface IEventGateway {
