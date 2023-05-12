@@ -19,8 +19,12 @@ describe('Message Binding', () => {
     }
   }
 
-  const TestHandler: IExchangeDefinition = {}
-  const TestHandlerOther: IExchangeDefinition = {}
+  const TestHandler: IExchangeDefinition = {
+    bindings: []
+  }
+  const TestHandlerOther: IExchangeDefinition = {
+    bindings: []
+  }
 
   describe('Base/Default IMessageBinding', () => {
     it('supports binding using string based message names', () => {
