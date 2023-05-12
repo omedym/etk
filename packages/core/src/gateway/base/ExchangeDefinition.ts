@@ -6,5 +6,5 @@ import type { MessageBinding } from '../../message/base/MessageBinding';
  * The base interface for defining exchanges and their message bindings.
  */
 export interface IExchangeDefinition {
-  bindings?: MessageBinding[];
+  bindings: MessageBinding[];
 }

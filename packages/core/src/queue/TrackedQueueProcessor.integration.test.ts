@@ -135,8 +135,9 @@ class TestTrackedQueueListener extends TrackedQueueListener {
 }
 
 type MessageJobData = { id: string; tenantid: string; data: object };
+type OtherJobData = { id: string; };
 type EmptyJobData = {};
-type TestJobData = MessageJobData | EmptyJobData;
+type TestJobData = MessageJobData | OtherJobData | EmptyJobData;
 
 const generateTestMessage = (data: IMessage | IUnknownMessage = {}): MessageJobData => { return {
   data,
@@ -249,8 +250,16 @@ describe('TrackedProcessor', () => {
     class TestTrackedProcessor extends TrackedQueueProcessor<TestJobData> { }
 
     @Processor(DELAYED_QUEUE_NAME)
-    class TestDelayedTrackedProcessor extends TrackedQueueProcessor<TestJobData> {
+    abstract class AbstractTestDelayedTrackedProcessor extends TrackedQueueProcessor<TestJobData> {
+      abstract onProcess(job: Job<TestJobData>, token?: string): void
+
       override async process(job: Job<TestJobData>, token?: string) {
+        await this.onProcess(job, token);
+      }
+    }
+
+    class TestDelayedTrackedProcessor extends AbstractTestDelayedTrackedProcessor {
+      async onProcess(job: Job<TestJobData>, token?: string) {
         job.log(`${DateTime.now().toISO()} Processing - Starting`);
         this.logger.info(`Job ${job.id} Processing: ${job.name}`);
 

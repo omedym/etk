@@ -52,6 +52,7 @@ describe('Gateway', () => {
     queue: {
       name: 'queueName',
     },
+    bindings: [],
   };
 
   class TestEventGateway extends AbstractEventGateway {
