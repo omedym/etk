@@ -1,5 +1,5 @@
+import { IExchangeDefinition } from './ExchangeDefinition';
 import { MessageDefinition, Message } from '..';
-import { IExchangeDefinition } from '../../gateway';
 
 /**
  * Base interface for describing bindings between messages and an exchange, such
@@ -27,7 +27,7 @@ export interface IAllowedMessageBinding extends IBaseMessageBinding  {
  */
 export interface IDirectMessageBinding extends IBaseMessageBinding {
   dir: 'out';
-  toHandler: IExchangeDefinition | string;
+  toQueue: IExchangeDefinition | string;
 }
 
 /**
@@ -36,7 +36,7 @@ export interface IDirectMessageBinding extends IBaseMessageBinding {
  */
 export interface IFanOutMessageBinding extends IBaseMessageBinding  {
   dir: 'out';
-  toSubscribers: (IExchangeDefinition | string)[];
+  toQueues: (IExchangeDefinition | string)[];
 }
 
 /**
