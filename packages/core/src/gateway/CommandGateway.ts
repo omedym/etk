@@ -1,7 +1,8 @@
-import { ICommand, ICommandDefinition } from '../message/Command';
-import { AbstractQueuedGateway, IQueuedGatewayDefinition } from './queued';
+import { AbstractExchange } from '../message/base/Exchange';
+import { ICommand } from '../message/Command';
+import { IGatewayDefinition } from './GatewayDefinition';
 
-export interface ICommandGatewayDefinition extends IQueuedGatewayDefinition {
+export interface ICommandGatewayDefinition extends IGatewayDefinition {
   gatewayType: 'command';
 }
 
@@ -11,7 +12,7 @@ export interface ICommandGateway {
 }
 
 export abstract class AbstractCommandGateway<T extends ICommandGatewayDefinition = ICommandGatewayDefinition>
-  extends AbstractQueuedGateway<T>
+  extends AbstractExchange<T>
   implements ICommandGateway
 {
   async send<T extends ICommand>(

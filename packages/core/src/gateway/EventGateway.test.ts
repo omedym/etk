@@ -1,5 +1,5 @@
-import { IEvent, IEventDefinition, AbstractMessageFactory, IEventMetadata } from '../message';
-import { IEventGatewayDefinition, AbstractEventGateway } from './EventGateway';
+import { IEvent, IEventDefinition, AbstractMessageFactory, IEventMetadata, AbstractExchange } from '..';
+import { IEventGatewayDefinition } from './EventGateway';
 
 describe('Gateway', () => {
 
@@ -54,7 +54,7 @@ describe('Gateway', () => {
     },
   };
 
-  class TestEventGateway extends AbstractEventGateway {
+  class TestEventGateway extends AbstractExchange {
     readonly definition = TestGatewayDefinition;
   }
 

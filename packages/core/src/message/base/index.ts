@@ -1,3 +1,5 @@
+export * from './Exchange';
+export * from './ExchangeDefinition';
 export * from './Message';
 export * from './MessageBinding';
 export * from './MessageContext';
@@ -5,3 +7,4 @@ export * from './MessageData';
 export * from './MessageDefinition';
 export * from './MessageFactory';
 export * from './MessageMetadata';
+export * from './QueueDefinition';
