@@ -3,7 +3,9 @@ import { IEvent, IEventDefinition } from './Event';
 import { IQuery, IQueryDefinition } from './Query';
 
 export * from './Command';
+export * from './CommandGateway';
 export * from './Event';
+export * from './EventGateway';
 export * from './Query';
 export * from './Request';
 export * from './base';

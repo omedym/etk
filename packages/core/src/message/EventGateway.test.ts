@@ -1,5 +1,6 @@
-import { IEvent, IEventDefinition, AbstractMessageFactory, IEventMetadata, AbstractMessageExchange } from '..';
-import { IEventGatewayDefinition } from './EventGateway';
+import { AbstractMessageFactory, AbstractMessageExchange } from "./base";
+import { IEvent, IEventDefinition, IEventMetadata } from "./Event";
+import { IEventGatewayDefinition } from "./EventGateway";
 
 describe('EventGateway', () => {
 
