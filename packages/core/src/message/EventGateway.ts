@@ -7,6 +7,7 @@ export interface IEventGatewayDefinition extends IMessageGatewayDefinition {
 
 export interface IEventGateway {
   readonly definition: IEventGatewayDefinition;
+  send: <T extends IEvent>(event: T) => Promise<void>;
   publish: <T extends IEvent>(event: T) => Promise<void>;
 }
 
@@ -14,7 +15,11 @@ export abstract class AbstractEventGateway<TDefinition extends IEventGatewayDefi
   extends AbstractMessageExchange<TDefinition>
   implements IEventGateway
 {
-  async publish<T extends IEvent>(event: T): Promise<void> {
-    return this.publishOrSend(event);
+    async send<T extends IEvent>(event: T): Promise<void> {
+      return this.publishOrSend(event);
+    }
+
+    async publish<T extends IEvent>(event: T): Promise<void> {
+      return this.publishOrSend(event);
   }
 }

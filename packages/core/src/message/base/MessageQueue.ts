@@ -29,7 +29,7 @@ export abstract class AbstractMessageQueue<T extends IMessageQueueDefinition = I
     const bindings = this.definition.bindings?.filter(b => b.dir == 'in');
     const allowed = bindings.find(b => b.msg.cloudEvent.type === message.type);
 
-    if (allowed) return true;
+    if (bindings.length === 0 || allowed) return true;
     return false;
   }
 

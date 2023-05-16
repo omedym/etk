@@ -1,9 +1,9 @@
-import { IMessageExchangeDefinition } from './MessageExchange';
+import { IMessageQueueDefinition } from './MessageQueue';
 import { MessageDefinition, Message } from '..';
 
 /**
- * Base interface for describing bindings between messages and an exchange, such
- * as a gateway or other consumer.
+ * Base interface for describing bindings between messages and queues, such
+ * as an exchange, a gateway, or other consumer.
  */
 export interface IBaseMessageBinding {
   dir: 'in' | 'out';
@@ -27,7 +27,7 @@ export interface IAllowedMessageBinding extends IBaseMessageBinding  {
  */
 export interface IDirectMessageBinding extends IBaseMessageBinding {
   dir: 'out';
-  toQueue: IMessageExchangeDefinition;
+  toQueue: IMessageQueueDefinition;
 }
 
 /**
@@ -36,7 +36,7 @@ export interface IDirectMessageBinding extends IBaseMessageBinding {
  */
 export interface IFanOutMessageBinding extends IBaseMessageBinding  {
   dir: 'out';
-  toQueue: IMessageExchangeDefinition[];
+  toQueue: IMessageQueueDefinition[];
 }
 
 /**
@@ -49,7 +49,7 @@ export interface IFanOutMessageBinding extends IBaseMessageBinding  {
 export interface ITopicMessageBinding extends IBaseMessageBinding  {
   dir: 'out';
   pattern: <TMessage extends Message>(message: TMessage) => boolean;
-  toSubscriber: IMessageExchangeDefinition[];
+  toSubscriber: IMessageQueueDefinition[];
 }
 
 export type InboundMessageBinding =
