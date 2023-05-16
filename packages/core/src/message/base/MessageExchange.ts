@@ -21,18 +21,9 @@ export abstract class AbstractMessageExchange<T extends IMessageExchangeDefiniti
     message: T,
   ): boolean {
     const bindings = this.definition.bindings?.filter(b => b.dir == 'in');
-
-    if (!bindings || bindings.length == 0)
-      return true;
-
-    // TODO: Switch to message type name string binding (only)
-    const allowed = bindings.find(b => typeof b.msg !== 'string'
-      ? (b.msg as unknown as MessageDefinition).cloudEvent.type == message.type
-      : b.msg == message.type
-    );
+    const allowed = bindings.find(b => b.msg.cloudEvent.type === message.type);
 
     if (allowed) return true;
-
     return false;
   }
 

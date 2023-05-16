@@ -27,7 +27,7 @@ export interface IAllowedMessageBinding extends IBaseMessageBinding  {
  */
 export interface IDirectMessageBinding extends IBaseMessageBinding {
   dir: 'out';
-  toQueue: IMessageExchangeDefinition | string;
+  toQueue: IMessageExchangeDefinition;
 }
 
 /**
@@ -36,22 +36,33 @@ export interface IDirectMessageBinding extends IBaseMessageBinding {
  */
 export interface IFanOutMessageBinding extends IBaseMessageBinding  {
   dir: 'out';
-  toQueues: (IMessageExchangeDefinition | string)[];
+  toQueue: IMessageExchangeDefinition[];
 }
 
 /**
+ * @deprecated
+ * Not supported yet
+ *
  * Sends messages to queues and corresponding handlers depending on successful matches
  * between a message and the binding's pattern matcher.
  */
 export interface ITopicMessageBinding extends IBaseMessageBinding  {
   dir: 'out';
   pattern: <TMessage extends Message>(message: TMessage) => boolean;
-  toSubscribers: (IMessageExchangeDefinition | string)[];
+  toSubscriber: IMessageExchangeDefinition[];
 }
 
-export type MessageBinding =
+export type InboundMessageBinding =
   | IAllowedMessageBinding
+;
+
+export type OutboundMessageBinding =
   | IDirectMessageBinding
   | IFanOutMessageBinding
   | ITopicMessageBinding
+;
+
+export type MessageBinding =
+  | InboundMessageBinding
+  | OutboundMessageBinding
 ;

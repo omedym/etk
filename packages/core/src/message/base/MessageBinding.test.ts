@@ -37,16 +37,16 @@ describe('Message Binding', () => {
     //   expect(sut.msg).toEqual(str);
     // });
 
-    it('supports binding to handler using string based exchange name', () => {
-      const str = 'exchangeType';
-      const sut: IDirectMessageBinding = {
-        dir: 'out',
-        msg: TestEventDefinition,
-        toQueue: str,
-      };
+    // it('supports binding to handler using string based exchange name', () => {
+    //   const str = 'exchangeType';
+    //   const sut: IDirectMessageBinding = {
+    //     dir: 'out',
+    //     msg: TestEventDefinition,
+    //     toQueue: str,
+    //   };
 
-      expect(sut.toQueue).toEqual(str);
-    });
+    //   expect(sut.toQueue).toEqual(str);
+    // });
 
     it('supports binding to handler using exchange definition', () => {
       const sut: IDirectMessageBinding = {
@@ -61,52 +61,52 @@ describe('Message Binding', () => {
   });
 
   describe('IFanOutMessageBinding', () => {
-    it('supports binding to subscriber(s) using string based subscriber name', () => {
-      const str = 'exchangeType';
-      const sut: IFanOutMessageBinding = {
-        dir: 'out',
-        msg: TestEventDefinition,
-        toQueues: [str],
-      };
+    // it('supports binding to subscriber(s) using string based subscriber name', () => {
+    //   const str = 'exchangeType';
+    //   const sut: IFanOutMessageBinding = {
+    //     dir: 'out',
+    //     msg: TestEventDefinition,
+    //     toQueues: [str],
+    //   };
 
-      expect(sut.toQueues[0]).toEqual(str);
-    });
+    //   expect(sut.toQueues[0]).toEqual(str);
+    // });
 
     it('supports binding to subscriber(s) using exchange definition', () => {
       const sut: IFanOutMessageBinding = {
         dir: 'out',
         msg: TestEventDefinition,
-        toQueues: [TestQueue, TestOtherQueue],
+        toQueue: [TestQueue, TestOtherQueue],
       };
 
-      expect(sut.toQueues[0]).toEqual(TestQueue);
-      expect(sut.toQueues[1]).toEqual(TestOtherQueue);
+      expect(sut.toQueue[0]).toEqual(TestQueue);
+      expect(sut.toQueue[1]).toEqual(TestOtherQueue);
     });
   });
 
   describe('ITopicMessageBinding', () => {
-    it('supports binding to subscriber(s) using string based subscriber name', () => {
-      const str = 'exchangeType';
-      const sut: ITopicMessageBinding = {
-        dir: 'out',
-        msg: TestEventDefinition,
-        toSubscribers: [str],
-        pattern: (e) => isMatching(P.any, e),
-      };
+    // it('supports binding to subscriber(s) using string based subscriber name', () => {
+    //   const str = 'exchangeType';
+    //   const sut: ITopicMessageBinding = {
+    //     dir: 'out',
+    //     msg: TestEventDefinition,
+    //     toSubscribers: [str],
+    //     pattern: (e) => isMatching(P.any, e),
+    //   };
 
-      expect(sut.toSubscribers[0]).toEqual(str);
-    });
+    //   expect(sut.toSubscribers[0]).toEqual(str);
+    // });
 
     it('supports binding to subscriber(s) using exchange definition', () => {
       const sut: ITopicMessageBinding = {
         dir: 'out',
         msg: TestEventDefinition,
-        toSubscribers: [TestQueue, TestOtherQueue],
+        toSubscriber: [TestQueue, TestOtherQueue],
         pattern: (e: IUnknownMessage) => isMatching({ type: TestEventDefinition.cloudEvent.type }, e),
       };
 
-      expect(sut.toSubscribers[0]).toEqual(TestQueue);
-      expect(sut.toSubscribers[1]).toEqual(TestOtherQueue);
+      expect(sut.toSubscriber[0]).toEqual(TestQueue);
+      expect(sut.toSubscriber[1]).toEqual(TestOtherQueue);
     });
 
     it('supports strong typing when defining a pattern match', () => {
@@ -126,7 +126,7 @@ describe('Message Binding', () => {
       const sut: ITopicMessageBinding = {
         dir: 'out',
         msg: TestEventDefinition,
-        toSubscribers: [TestQueue, TestOtherQueue],
+        toSubscriber: [TestQueue, TestOtherQueue],
         pattern: (e: IUnknownMessage) => isMatching({ type: TestEventDefinition.cloudEvent.type }, e),
       };
 
