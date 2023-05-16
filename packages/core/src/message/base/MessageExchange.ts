@@ -1,18 +1,18 @@
 import type { Queue } from 'bullmq';
 
 import type { IMessage } from './Message';
-import type { IExchangeDefinition } from './ExchangeDefinition';
+import type { IMessageExchangeDefinition } from './MessageExchange.definition';
 import { MessageDefinition } from '..';
 
-export interface IExchange<T extends IExchangeDefinition = IExchangeDefinition> {
+export interface IMessageExchange<T extends IMessageExchangeDefinition = IMessageExchangeDefinition> {
   readonly definition: T;
 
   isAllowed: <T extends IMessage>(message: T) => boolean;
   publishOrSend: <T extends IMessage>(message: T) => void;
 }
 
-export abstract class AbstractExchange<T extends IExchangeDefinition = IExchangeDefinition>
-  implements IExchange<T>
+export abstract class AbstractMessageExchange<T extends IMessageExchangeDefinition = IMessageExchangeDefinition>
+  implements IMessageExchange<T>
 {
   readonly definition: T;
   protected queue: Queue;

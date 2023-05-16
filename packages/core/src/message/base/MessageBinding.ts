@@ -1,4 +1,4 @@
-import { IExchangeDefinition } from './ExchangeDefinition';
+import { IMessageExchangeDefinition } from './MessageExchange.definition';
 import { MessageDefinition, Message } from '..';
 
 /**
@@ -7,7 +7,7 @@ import { MessageDefinition, Message } from '..';
  */
 export interface IBaseMessageBinding {
   dir: 'in' | 'out';
-  msg: MessageDefinition | string;
+  msg: MessageDefinition;
 }
 
 /**
@@ -27,7 +27,7 @@ export interface IAllowedMessageBinding extends IBaseMessageBinding  {
  */
 export interface IDirectMessageBinding extends IBaseMessageBinding {
   dir: 'out';
-  toQueue: IExchangeDefinition | string;
+  toQueue: IMessageExchangeDefinition | string;
 }
 
 /**
@@ -36,7 +36,7 @@ export interface IDirectMessageBinding extends IBaseMessageBinding {
  */
 export interface IFanOutMessageBinding extends IBaseMessageBinding  {
   dir: 'out';
-  toQueues: (IExchangeDefinition | string)[];
+  toQueues: (IMessageExchangeDefinition | string)[];
 }
 
 /**
@@ -46,7 +46,7 @@ export interface IFanOutMessageBinding extends IBaseMessageBinding  {
 export interface ITopicMessageBinding extends IBaseMessageBinding  {
   dir: 'out';
   pattern: <TMessage extends Message>(message: TMessage) => boolean;
-  toSubscribers: (IExchangeDefinition | string)[];
+  toSubscribers: (IMessageExchangeDefinition | string)[];
 }
 
 export type MessageBinding =

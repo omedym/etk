@@ -1,4 +1,4 @@
-import { AbstractExchange } from '../message/base/Exchange';
+import { AbstractMessageExchange } from '../message/base/MessageExchange';
 import { ICommand } from '../message/Command';
 import { IGatewayDefinition } from './GatewayDefinition';
 
@@ -12,7 +12,7 @@ export interface ICommandGateway {
 }
 
 export abstract class AbstractCommandGateway<T extends ICommandGatewayDefinition = ICommandGatewayDefinition>
-  extends AbstractExchange<T>
+  extends AbstractMessageExchange<T>
   implements ICommandGateway
 {
   async send<T extends ICommand>(

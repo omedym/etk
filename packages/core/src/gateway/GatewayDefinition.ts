@@ -1,10 +1,10 @@
-import { IExchangeDefinition } from '../message/base/ExchangeDefinition';
+import { IMessageExchangeDefinition } from '../message/base/MessageExchange.definition';
 
 /**
  * IGatewayDefinition
  *
  * The base interface for defining gateways and the types of messages they allow.
  */
-export interface IGatewayDefinition extends IExchangeDefinition {
+export interface IGatewayDefinition extends IMessageExchangeDefinition {
   gatewayType: 'command' | 'event' | 'query' | 'message';
 }

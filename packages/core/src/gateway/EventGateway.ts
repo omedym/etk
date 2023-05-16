@@ -1,4 +1,4 @@
-import { AbstractExchange } from '../message/base/Exchange';
+import { AbstractMessageExchange } from '../message/base/MessageExchange';
 import { IEvent } from '../message/Event';
 import { IGatewayDefinition } from './GatewayDefinition';
 
@@ -12,7 +12,7 @@ export interface IEventGateway {
 }
 
 export abstract class AbstractEventGateway<TDefinition extends IEventGatewayDefinition = IEventGatewayDefinition>
-  extends AbstractExchange<TDefinition>
+  extends AbstractMessageExchange<TDefinition>
   implements IEventGateway
 {
   async publish<T extends IEvent>(

@@ -1,7 +1,8 @@
 import { isMatching, P } from 'ts-pattern';
-import { IUnknownMessage } from '..';
+import { IUnknownMessage } from './Message';
+import { IMessageDefinition } from '..';
 
-import { IExchangeDefinition } from './ExchangeDefinition';
+import { IMessageExchangeDefinition } from './MessageExchange.definition';
 import type { IEvent, IEventDefinition } from '../Event';
 import type { IDirectMessageBinding, IFanOutMessageBinding, IBaseMessageBinding, ITopicMessageBinding } from './MessageBinding';
 
@@ -19,16 +20,10 @@ describe('Message Binding', () => {
     }
   }
 
-  const TestQueue: IExchangeDefinition = { bindings: [], queue: { name: 'test' } };
-  const TestOtherQueue: IExchangeDefinition = { bindings: [], queue: { name: 'test-other' }};
+  const TestQueue: IMessageExchangeDefinition = { bindings: [], queue: { name: 'test' } };
+  const TestOtherQueue: IMessageExchangeDefinition = { bindings: [], queue: { name: 'test-other' }};
 
   describe('Base/Default IMessageBinding', () => {
-    it('supports binding using string based message names', () => {
-      const str = 'messageType';
-      const sut: IBaseMessageBinding = { dir: 'in', msg: str };
-      expect(sut.msg).toEqual(str);
-    });
-
     it('supports binding using message definition', () => {
       const sut: IBaseMessageBinding = { dir: 'in', msg: TestEventDefinition };
       expect(sut.msg).toEqual(TestEventDefinition);
@@ -36,6 +31,12 @@ describe('Message Binding', () => {
   });
 
   describe('IDirectMessageBinding', () => {
+    // it('supports binding using string based message names', () => {
+    //   const str = 'messageType';
+    //   const sut: IBaseMessageBinding = { dir: 'in', msg: str };
+    //   expect(sut.msg).toEqual(str);
+    // });
+
     it('supports binding to handler using string based exchange name', () => {
       const str = 'exchangeType';
       const sut: IDirectMessageBinding = {
