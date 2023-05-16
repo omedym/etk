@@ -15,9 +15,7 @@ export abstract class AbstractEventGateway<TDefinition extends IEventGatewayDefi
   extends AbstractMessageExchange<TDefinition>
   implements IEventGateway
 {
-  async publish<T extends IEvent>(
-    event: T,
-  ) {
-    this.publishOrSend(event)
+  async publish<T extends IEvent>(event: T): Promise<void> {
+    return this.publishOrSend(event);
   }
 }

@@ -2,7 +2,7 @@ import { isMatching, P } from 'ts-pattern';
 import { IUnknownMessage } from './Message';
 import { IMessageDefinition } from '..';
 
-import { IMessageExchangeDefinition } from './MessageExchange.definition';
+import { IMessageExchangeDefinition } from './MessageExchange';
 import type { IEvent, IEventDefinition } from '../Event';
 import type { IDirectMessageBinding, IFanOutMessageBinding, IBaseMessageBinding, ITopicMessageBinding } from './MessageBinding';
 
@@ -20,8 +20,8 @@ describe('Message Binding', () => {
     }
   }
 
-  const TestQueue: IMessageExchangeDefinition = { bindings: [], queue: { name: 'test' } };
-  const TestOtherQueue: IMessageExchangeDefinition = { bindings: [], queue: { name: 'test-other' }};
+  const TestQueue: IMessageExchangeDefinition = { bindings: [], queueId: 'test' };
+  const TestOtherQueue: IMessageExchangeDefinition = { bindings: [], queueId: 'test-other' };
 
   describe('Base/Default IMessageBinding', () => {
     it('supports binding using message definition', () => {
@@ -31,24 +31,7 @@ describe('Message Binding', () => {
   });
 
   describe('IDirectMessageBinding', () => {
-    // it('supports binding using string based message names', () => {
-    //   const str = 'messageType';
-    //   const sut: IBaseMessageBinding = { dir: 'in', msg: str };
-    //   expect(sut.msg).toEqual(str);
-    // });
-
-    // it('supports binding to handler using string based exchange name', () => {
-    //   const str = 'exchangeType';
-    //   const sut: IDirectMessageBinding = {
-    //     dir: 'out',
-    //     msg: TestEventDefinition,
-    //     toQueue: str,
-    //   };
-
-    //   expect(sut.toQueue).toEqual(str);
-    // });
-
-    it('supports binding to handler using exchange definition', () => {
+    it('supports binding to a queue using a direct binding with an exchange definition', () => {
       const sut: IDirectMessageBinding = {
         dir: 'out',
         msg: TestEventDefinition,
@@ -61,18 +44,7 @@ describe('Message Binding', () => {
   });
 
   describe('IFanOutMessageBinding', () => {
-    // it('supports binding to subscriber(s) using string based subscriber name', () => {
-    //   const str = 'exchangeType';
-    //   const sut: IFanOutMessageBinding = {
-    //     dir: 'out',
-    //     msg: TestEventDefinition,
-    //     toQueues: [str],
-    //   };
-
-    //   expect(sut.toQueues[0]).toEqual(str);
-    // });
-
-    it('supports binding to subscriber(s) using exchange definition', () => {
+    it('supports binding to queue(s) using a fanout binding with an exchange definition', () => {
       const sut: IFanOutMessageBinding = {
         dir: 'out',
         msg: TestEventDefinition,
@@ -97,7 +69,7 @@ describe('Message Binding', () => {
     //   expect(sut.toSubscribers[0]).toEqual(str);
     // });
 
-    it('supports binding to subscriber(s) using exchange definition', () => {
+    it('supports binding to queues(s) using a topic binding with an exchange definition', () => {
       const sut: ITopicMessageBinding = {
         dir: 'out',
         msg: TestEventDefinition,

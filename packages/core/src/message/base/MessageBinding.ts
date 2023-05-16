@@ -1,4 +1,4 @@
-import { IMessageExchangeDefinition } from './MessageExchange.definition';
+import { IMessageExchangeDefinition } from './MessageExchange';
 import { MessageDefinition, Message } from '..';
 
 /**

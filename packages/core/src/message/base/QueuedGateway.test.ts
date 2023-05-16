@@ -1,8 +1,7 @@
-import { AbstractMessageExchange, IMessageExchangeDefinition } from ".";
-import { IMessage } from "./Message";
-import { IMessageDefinition } from "./Message.definition";
-import { AbstractMessageFactory } from "./MessageFactory";
-import { IMessageMetadata } from "./MessageMetadata";
+import { AbstractMessageExchange, IMessageDefinition, IMessageExchangeDefinition } from '.';
+import { IMessage } from './Message';
+import { AbstractMessageFactory } from './MessageFactory';
+import { IMessageMetadata } from './MessageMetadata';
 
 
 describe('Gateway', () => {
@@ -52,9 +51,7 @@ describe('Gateway', () => {
 
   const TestGatewayDefinition: IMessageExchangeDefinition = {
     bindings: [{ dir: 'in', msg: TestMessageADefinition }],
-    queue: {
-      name: 'queueName',
-    },
+    queueId: 'queueName',
   };
 
   class TestGateway extends AbstractMessageExchange {

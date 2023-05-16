@@ -1,8 +1,8 @@
 import { IMessage, IMessageDefinition, AbstractMessageFactory, IMessageMetadata } from '..';
-import { AbstractMessageExchange } from './MessageExchange';
-import { IMessageExchangeDefinition } from './MessageExchange';
+import { AbstractMessageQueue } from './MessageQueue';
+import { IMessageQueueDefinition } from './MessageQueue';
 
-describe('Exchange', () => {
+describe('MessageQueue', () => {
 
   interface ITestData {}
   interface ITestMessage extends IMessage<ITestData> {}
@@ -28,13 +28,13 @@ describe('Exchange', () => {
   const data: ITestData = { };
 
   const TestEventSchema = {
-    type: 'object',
+    type: "object",
     properties: {
-      type: { type: 'string' },
-      data: { type: 'object' },
-      aMissingProperty: { type: 'string' },
+      type: { type: "string" },
+      data: { type: "object" },
+      aMissingProperty: { type: "string" },
      },
-    required: ['data', 'type', 'aMissingProperty'],
+    required: ["data", "type", "aMissingProperty"],
   };
 
   class TestMessageA extends AbstractMessageFactory<ITestData, IMessageMetadata, ITestMessage> {
@@ -47,36 +47,36 @@ describe('Exchange', () => {
     schema = TestEventSchema;
   }
 
-  const TestExchangeDefinition: IMessageExchangeDefinition = {
+  const TestQueueDefinition: IMessageQueueDefinition = {
     queueId: 'queueId',
     bindings: [{ dir: 'in', msg: TestMessageADefinition }],
   };
 
-  class TestExchange extends AbstractMessageExchange {
-    readonly definition = TestExchangeDefinition;
+  class TestQueue extends AbstractMessageQueue {
+    readonly definition = TestQueueDefinition;
   }
 
   const message_a = new TestMessageA().build('', '', data);
   const message_b = new TestMessageB().build('', '', data);
 
-  it('can check if a message is allowed', () => {
-    const sut = new TestExchange();
+  it('checks if a message is allowed', () => {
+    const sut = new TestQueue();
     expect(sut.isAllowed(message_a)).toBeTruthy();
   });
 
-  it('can check if a message is not allowed', () => {
-    const sut = new TestExchange();
+  it('checks if a message is not allowed', () => {
+    const sut = new TestQueue();
     expect(sut.isAllowed(message_b)).toBeFalsy();
   });
 
-  it('publishes or sends an allowed message', async () => {
-    const sut = new TestExchange();
+  it('adds an allowed message', async () => {
+    const sut = new TestQueue();
     expect(() => sut.add(message_a))
       .toThrowError('NOT IMPLEMENTED');
   });
 
-  it('prevents publishing or sending messages not specified as allowed', async () => {
-    const sut = new TestExchange();
+  it('prevents adding messages not specified as allowed', async () => {
+    const sut = new TestQueue();
     expect(() => sut.add(message_a))
       .toThrow();
   });

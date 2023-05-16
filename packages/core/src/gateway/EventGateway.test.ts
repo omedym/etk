@@ -1,7 +1,7 @@
 import { IEvent, IEventDefinition, AbstractMessageFactory, IEventMetadata, AbstractMessageExchange } from '..';
 import { IEventGatewayDefinition } from './EventGateway';
 
-describe('Gateway', () => {
+describe('EventGateway', () => {
 
   interface ITestData {}
   interface ITestEvent extends IEvent<ITestData> {}
@@ -49,9 +49,7 @@ describe('Gateway', () => {
   const TestGatewayDefinition: IEventGatewayDefinition = {
     gatewayType: 'event',
     bindings: [{ dir: 'in', msg: TestEventADefinition }],
-    queue: {
-      name: 'queueName',
-    },
+    queueId: 'queueId',
   };
 
   class TestEventGateway extends AbstractMessageExchange {
@@ -71,16 +69,14 @@ describe('Gateway', () => {
     expect(sut.isAllowed(event_b)).toBeFalsy();
   });
 
-  it('can publish or send an allowed message', () => {
+  it('publishes or sends an allowed message', async () => {
     const sut = new TestEventGateway();
-
     expect(() => sut.publishOrSend(event_a))
       .toThrowError('NOT IMPLEMENTED');
   });
 
-  it('can prevent publishing or send a message', () => {
+  it('prevents publishing or sending messages not specified as allowed', async () => {
     const sut = new TestEventGateway();
-
     expect(() => sut.publishOrSend(event_b))
       .toThrow();
   });

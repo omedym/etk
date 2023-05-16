@@ -48,9 +48,7 @@ describe('Gateway', () => {
 
   const TestGatewayDefinition: IEventGatewayDefinition = {
     gatewayType: 'event',
-    queue: {
-      name: 'queueName',
-    },
+    queueId: 'queueName',
     bindings: [
       { dir: 'in', msg: TestEventADefinition }
     ],

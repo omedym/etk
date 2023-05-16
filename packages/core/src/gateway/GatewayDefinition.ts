@@ -1,4 +1,4 @@
-import { IMessageExchangeDefinition } from '../message/base/MessageExchange.definition';
+import { IMessageExchangeDefinition } from '../message/base/MessageExchange';
 
 /**
  * IGatewayDefinition

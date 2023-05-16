@@ -15,9 +15,7 @@ export abstract class AbstractCommandGateway<T extends ICommandGatewayDefinition
   extends AbstractMessageExchange<T>
   implements ICommandGateway
 {
-  async send<T extends ICommand>(
-    command: T,
-  ) {
-    super.publishOrSend(command);
+  async send<T extends ICommand>(command: T): Promise<void> {
+    return super.publishOrSend(command);
   }
 }
