@@ -1,8 +1,7 @@
-import { AbstractMessageExchange } from '../message/base/MessageExchange';
-import { IEvent } from '../message/Event';
-import { IGatewayDefinition } from './GatewayDefinition';
+import { IMessageGatewayDefinition, AbstractMessageExchange } from "./base";
+import { IEvent } from "./Event";
 
-export interface IEventGatewayDefinition extends IGatewayDefinition {
+export interface IEventGatewayDefinition extends IMessageGatewayDefinition {
   gatewayType: 'event';
 }
 

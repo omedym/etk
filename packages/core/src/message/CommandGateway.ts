@@ -1,8 +1,7 @@
-import { AbstractMessageExchange } from '../message/base/MessageExchange';
-import { ICommand } from '../message/Command';
-import { IGatewayDefinition } from './GatewayDefinition';
+import { IMessageGatewayDefinition, AbstractMessageExchange } from "./base";
+import { ICommand } from "./Command";
 
-export interface ICommandGatewayDefinition extends IGatewayDefinition {
+export interface ICommandGatewayDefinition extends IMessageGatewayDefinition {
   gatewayType: 'command';
 }
 
