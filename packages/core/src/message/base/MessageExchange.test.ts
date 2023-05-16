@@ -1,8 +1,8 @@
-import { IMessageExchangeDefinition, AbstractMessageExchange } from '.';
-import { IMessage } from './Message';
-import { IMessageDefinition } from './Message.definition';
-import { AbstractMessageFactory } from './MessageFactory';
-import { IMessageMetadata } from './MessageMetadata';
+import { IMessageExchangeDefinition, AbstractMessageExchange } from ".";
+import { IMessage } from "./Message";
+import { IMessageDefinition } from "./Message.definition";
+import { AbstractMessageFactory } from "./MessageFactory";
+import { IMessageMetadata } from "./MessageMetadata";
 
 describe('Gateway', () => {
 

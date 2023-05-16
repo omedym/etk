@@ -1,6 +1,9 @@
-import { IMessage, IMessageDefinition, AbstractMessageFactory, IMessageMetadata } from '../../message';
-import { AbstractExchange } from './Exchange';
-import { IExchangeDefinition } from './ExchangeDefinition';
+import { AbstractMessageExchange, IMessageExchangeDefinition } from ".";
+import { IMessage } from "./Message";
+import { IMessageDefinition } from "./Message.definition";
+import { AbstractMessageFactory } from "./MessageFactory";
+import { IMessageMetadata } from "./MessageMetadata";
+
 
 describe('Gateway', () => {
 
@@ -47,14 +50,14 @@ describe('Gateway', () => {
     schema = TestEventSchema;
   }
 
-  const TestGatewayDefinition: IExchangeDefinition = {
+  const TestGatewayDefinition: IMessageExchangeDefinition = {
     bindings: [{ dir: 'in', msg: TestMessageADefinition }],
     queue: {
       name: 'queueName',
     },
   };
 
-  class TestGateway extends AbstractExchange {
+  class TestGateway extends AbstractMessageExchange {
     readonly definition = TestGatewayDefinition;
   }
 

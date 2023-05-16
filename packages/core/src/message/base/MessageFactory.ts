@@ -1,6 +1,6 @@
 import type { IMessage } from './Message';
 import type { IMessageData } from './MessageData';
-import type { IMessageDefinition } from './MessageDefinition';
+import type { IMessageDefinition } from './Message.definition';
 import type { IMessageMetadata } from './MessageMetadata';
 
 import Ajv from 'ajv';
