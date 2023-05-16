@@ -1,38 +1,27 @@
-import type { Queue } from 'bullmq';
-
 import type { IMessage } from './Message';
-import type { IMessageExchangeDefinition } from './MessageExchange.definition';
-import { MessageDefinition } from '..';
+import type { IMessageQueueDefinition } from './MessageQueue';
+import { AbstractMessageQueue } from './MessageQueue';
+
+/**
+ * IMessageExchangeDefinition
+ *
+ * The base interface for defining a queue backed exchange and its message bindings
+ * which are used to determine what it can accept inbound and any special
+ * handling for outbound.
+ */
+export interface IMessageExchangeDefinition extends IMessageQueueDefinition { }
 
 export interface IMessageExchange<T extends IMessageExchangeDefinition = IMessageExchangeDefinition> {
   readonly definition: T;
 
-  isAllowed: <T extends IMessage>(message: T) => boolean;
-  publishOrSend: <T extends IMessage>(message: T) => void;
+  publishOrSend: <T extends IMessage>(message: T) => Promise<void>;
 }
 
 export abstract class AbstractMessageExchange<T extends IMessageExchangeDefinition = IMessageExchangeDefinition>
+  extends AbstractMessageQueue<T>
   implements IMessageExchange<T>
 {
-  readonly definition: T;
-  protected queue: Queue;
-
-  isAllowed<T extends IMessage>(
-    message: T,
-  ): boolean {
-    const bindings = this.definition.bindings?.filter(b => b.dir == 'in');
-    const allowed = bindings.find(b => b.msg.cloudEvent.type === message.type);
-
-    if (allowed) return true;
-    return false;
-  }
-
-  publishOrSend<T extends IMessage>(
-    message: T
-  ): void {
-    if (this.isAllowed(message) == false)
-      throw Error(`${this.constructor.name} does not allow: ${message.type}`);
-
-    throw new Error('NOT IMPLEMENTED');
+  async publishOrSend<T extends IMessage>(message: T): Promise<void> {
+   return super.add(message);
   }
 }

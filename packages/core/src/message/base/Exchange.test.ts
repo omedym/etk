@@ -1,6 +1,5 @@
-import { IMessageExchangeDefinition, AbstractMessageExchange } from '.';
+import { IMessageExchangeDefinition, AbstractMessageExchange, IMessageDefinition } from '.';
 import { IMessage } from './Message';
-import { IMessageDefinition } from './Message.definition';
 import { AbstractMessageFactory } from './MessageFactory';
 import { IMessageMetadata } from './MessageMetadata';
 
@@ -51,9 +50,7 @@ describe('Gateway', () => {
 
   const TestExchangeDefinition: IMessageExchangeDefinition = {
     bindings: [{ dir: 'in', msg: TestMessageADefinition }],
-    queue: {
-      name: 'queueName',
-    },
+    queueId: 'queueName'
   };
 
   class TestGateway extends AbstractMessageExchange {
@@ -73,14 +70,14 @@ describe('Gateway', () => {
     expect(sut.isAllowed(message_b)).toBeFalsy();
   });
 
-  it('can publish or send an allowed message', () => {
+  it('can publish or send an allowed message', async () => {
     const sut = new TestGateway();
 
     expect(() => sut.publishOrSend(message_a))
       .toThrowError('NOT IMPLEMENTED');
   });
 
-  it('can prevent publishing or send a message', () => {
+  it('can prevent publishing or send a message', async () => {
     const sut = new TestGateway();
 
     expect(() => sut.publishOrSend(message_b))
