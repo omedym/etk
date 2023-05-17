@@ -49,7 +49,7 @@ export interface IFanOutMessageBinding extends IBaseMessageBinding  {
 export interface ITopicMessageBinding extends IBaseMessageBinding  {
   dir: 'out';
   pattern: <TMessage extends Message>(message: TMessage) => boolean;
-  toSubscriber: IMessageQueueDefinition[];
+  toQueue: IMessageQueueDefinition[];
 }
 
 export type InboundMessageBinding =
