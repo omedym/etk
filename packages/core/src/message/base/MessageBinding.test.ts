@@ -73,12 +73,12 @@ describe('Message Binding', () => {
       const sut: ITopicMessageBinding = {
         dir: 'out',
         msg: TestEventDefinition,
-        toSubscriber: [TestQueue, TestOtherQueue],
+        toQueue: [TestQueue, TestOtherQueue],
         pattern: (e: IUnknownMessage) => isMatching({ type: TestEventDefinition.cloudEvent.type }, e),
       };
 
-      expect(sut.toSubscriber[0]).toEqual(TestQueue);
-      expect(sut.toSubscriber[1]).toEqual(TestOtherQueue);
+      expect(sut.toQueue[0]).toEqual(TestQueue);
+      expect(sut.toQueue[1]).toEqual(TestOtherQueue);
     });
 
     it('supports strong typing when defining a pattern match', () => {
@@ -98,7 +98,7 @@ describe('Message Binding', () => {
       const sut: ITopicMessageBinding = {
         dir: 'out',
         msg: TestEventDefinition,
-        toSubscriber: [TestQueue, TestOtherQueue],
+        toQueue: [TestQueue, TestOtherQueue],
         pattern: (e: IUnknownMessage) => isMatching({ type: TestEventDefinition.cloudEvent.type }, e),
       };
 
