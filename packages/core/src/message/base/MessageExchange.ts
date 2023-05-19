@@ -1,3 +1,5 @@
+import { ICommand } from '../Command';
+import { IEvent } from '../Event';
 import type { IMessage } from './Message';
 import type { IMessageQueueDefinition } from './MessageQueue';
 import { AbstractMessageQueue } from './MessageQueue';
@@ -11,17 +13,20 @@ import { AbstractMessageQueue } from './MessageQueue';
  */
 export interface IMessageExchangeDefinition extends IMessageQueueDefinition { }
 
-export interface IMessageExchange<T extends IMessageExchangeDefinition = IMessageExchangeDefinition> {
-  readonly definition: T;
-
-  publishOrSend: <T extends IMessage>(message: T) => Promise<void>;
+export interface IMessageExchange<
+  TDefinition extends IMessageExchangeDefinition = IMessageExchangeDefinition
+> {
+  readonly definition: TDefinition;
 }
 
-export abstract class AbstractMessageExchange<T extends IMessageExchangeDefinition = IMessageExchangeDefinition>
-  extends AbstractMessageQueue<T>
-  implements IMessageExchange<T>
+export abstract class AbstractMessageExchange<
+  TDefinition extends IMessageExchangeDefinition = IMessageExchangeDefinition,
+  T extends ICommand | IEvent = any
+>
+  extends AbstractMessageQueue<TDefinition>
+  implements IMessageExchange<TDefinition>
 {
-  async publishOrSend<T extends IMessage>(message: T): Promise<void> {
-   return super.add(message);
+  protected async publishOrSend(message: T): Promise<void> {
+   return this.add(message);
   }
 }

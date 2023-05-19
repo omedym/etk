@@ -1,4 +1,5 @@
-import type { IMessage } from './Message';
+import { Message } from '..';
+import type { IMessage, IUnknownMessage } from './Message';
 import type { IMessageQueueDefinition } from './MessageQueue';
 import { AbstractMessageQueue } from './MessageQueue';
 
@@ -10,17 +11,22 @@ import { AbstractMessageQueue } from './MessageQueue';
  */
 export interface IMessageConsumerDefinition extends IMessageQueueDefinition { }
 
-export interface IMessageConsumer<T extends IMessageConsumerDefinition = IMessageConsumerDefinition> {
-  readonly definition: T;
-
-  send: <T extends IMessage>(message: T) => Promise<void>;
+export interface IMessageConsumer<
+  TDefinition extends IMessageConsumerDefinition = IMessageConsumerDefinition,
+  T extends IMessage = any,
+> {
+  readonly definition: TDefinition;
+  send: (message: T) => Promise<void>;
 }
 
-export abstract class AbstractMessageConsumer<T extends IMessageConsumerDefinition = IMessageConsumerDefinition>
-  extends AbstractMessageQueue<T>
-  implements IMessageConsumer<T>
+export abstract class AbstractMessageConsumer<
+  TDefinition extends IMessageConsumerDefinition = IMessageConsumerDefinition,
+  T extends Message = any
+>
+  extends AbstractMessageQueue<TDefinition>
+  implements IMessageConsumer<TDefinition, T>
 {
-  async send<T extends IMessage>(message: T): Promise<void> {
+  async send(message: T): Promise<void> {
     return super.add(message);
   }
 }
