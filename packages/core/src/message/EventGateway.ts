@@ -1,20 +1,26 @@
-import { IMessageGatewayDefinition, AbstractMessageExchange } from "./base";
-import { IEvent } from "./Event";
+import { IMessageGatewayDefinition, AbstractMessageExchange } from './base';
+import { IEvent } from './Event';
 
 export interface IEventGatewayDefinition extends IMessageGatewayDefinition {
   gatewayType: 'event';
 }
 
-export interface IEventGateway {
-  readonly definition: IEventGatewayDefinition;
-  publish: <T extends IEvent>(event: T) => Promise<void>;
+export interface IEventGateway<
+  TDefinition extends IEventGatewayDefinition = IEventGatewayDefinition,
+  T extends IEvent = any,
+> {
+  readonly definition: TDefinition;
+  publish: (event: T) => Promise<void>;
 }
 
-export abstract class AbstractEventGateway<TDefinition extends IEventGatewayDefinition = IEventGatewayDefinition>
+export abstract class AbstractEventGateway<
+  TDefinition extends IEventGatewayDefinition = IEventGatewayDefinition,
+  T extends IEvent = any
+>
   extends AbstractMessageExchange<TDefinition>
-  implements IEventGateway
+  implements IEventGateway<TDefinition, T>
 {
-    async publish<T extends IEvent>(event: T): Promise<void> {
+    async publish(event: T): Promise<void> {
       return this.publishOrSend(event);
   }
 }

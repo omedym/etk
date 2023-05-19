@@ -1,6 +1,6 @@
-import type { Queue } from 'bullmq';
+import type { JobsOptions, Queue } from 'bullmq';
 
-import type { IMessage } from './Message';
+import type { IMessage, IUnknownMessage } from './Message';
 import type { MessageBinding } from './MessageBinding';
 
 export interface IMessageQueueDefinition {
@@ -10,22 +10,30 @@ export interface IMessageQueueDefinition {
   bindings: MessageBinding[];
 }
 
-export interface IMessageQueue<T extends IMessageQueueDefinition = IMessageQueueDefinition> {
-  readonly definition: T;
+export interface IMessageQueue<
+  TDefinition extends IMessageQueueDefinition = IMessageQueueDefinition,
+  T extends IMessage | IUnknownMessage = IMessage,
+> {
+  readonly definition: TDefinition;
 
-  isAllowed: <T extends IMessage>(message: T) => boolean;
-  // add: <T extends IMessage>(message: T) => void;
+  isAllowed: (message: T) => boolean;
 }
 
-export abstract class AbstractMessageQueue<T extends IMessageQueueDefinition = IMessageQueueDefinition>
-  implements IMessageQueue<T>
+export abstract class AbstractMessageQueue<
+  TDefinition extends IMessageQueueDefinition = IMessageQueueDefinition,
+  T extends IMessage | IUnknownMessage = IMessage,
+>
+  implements IMessageQueue<TDefinition, T>
 {
-  readonly definition: T;
-  protected queue: Queue;
+  readonly definition: TDefinition;
+  protected _queue: Queue;
+  protected _defaultJobsOptions: JobsOptions = {
+    attempts: 5,
+    backoff: { type: 'exponential', delay: 500 },
+    removeOnComplete: true,
+  }
 
-  isAllowed<T extends IMessage>(
-    message: T,
-  ): boolean {
+  isAllowed(message: T): boolean {
     const bindings = this.definition.bindings?.filter(b => b.dir == 'in');
     const allowed = bindings.find(b => b.msg.cloudEvent.type === message.type);
 
@@ -33,7 +41,7 @@ export abstract class AbstractMessageQueue<T extends IMessageQueueDefinition = I
     return false;
   }
 
-  async add<T extends IMessage>(message: T): Promise<void> {
+  protected async add(message: T): Promise<void> {
     if (this.isAllowed(message) == false)
       throw Error(`${this.constructor.name} does not allow: ${message.type}`);
 
