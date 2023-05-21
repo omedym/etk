@@ -34,7 +34,7 @@ export abstract class AbstractMessageFactory<
     // both a data payload and context payload attribute for `tenantId`.
     const message: TMessage = {
       type: this.definition.cloudEvent.type,
-      now: DateTime.now().toISO(),
+      time: DateTime.now().toISO(),
       id: createId(),
       data: {
         ...data,
