@@ -27,6 +27,6 @@ export abstract class AbstractMessageExchange<
   implements IMessageExchange<TDefinition>
 {
   protected async publishOrSend(message: T): Promise<void> {
-   return this.add(message);
+   const job = await this.add(message);
   }
 }

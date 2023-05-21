@@ -1,3 +1,4 @@
+import { Queue } from 'bullmq';
 import { IMessage, IMessageDefinition, AbstractMessageFactory, IMessageMetadata } from '..';
 import { AbstractMessageQueue } from './MessageQueue';
 import { IMessageQueueDefinition } from './MessageQueue';
@@ -54,30 +55,34 @@ describe('MessageQueue', () => {
 
   class TestQueue extends AbstractMessageQueue {
     readonly definition = TestQueueDefinition;
+    async send(message: IMessage): Promise<void> { await this.add(message) }
   }
 
   const message_a = new TestMessageA().build('', '', data);
   const message_b = new TestMessageB().build('', '', data);
 
+  const queue: Queue = jest.mocked<Queue>({
+    add: jest.fn(),
+  } as unknown as Queue)
+
   it('checks if a message is allowed', () => {
-    const sut = new TestQueue();
+    const sut = new TestQueue(queue);
     expect(sut.isAllowed(message_a)).toBeTruthy();
   });
 
   it('checks if a message is not allowed', () => {
-    const sut = new TestQueue();
+    const sut = new TestQueue(queue);
     expect(sut.isAllowed(message_b)).toBeFalsy();
   });
 
-  it('adds an allowed message', async () => {
-    const sut = new TestQueue();
-    expect(() => sut.add(message_a))
-      .toThrowError('NOT IMPLEMENTED');
+  it('adds an allowed message', () => {
+    const sut = new TestQueue(queue);
+    sut.send(message_a);
+    expect(queue.add).toBeCalled();
   });
 
   it('prevents adding messages not specified as allowed', async () => {
-    const sut = new TestQueue();
-    expect(() => sut.add(message_a))
-      .toThrow();
+    const sut = new TestQueue(queue);
+    await expect(sut.send(message_b)).rejects.toThrow();
   });
 });

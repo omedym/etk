@@ -27,6 +27,6 @@ export abstract class AbstractMessageConsumer<
   implements IMessageConsumer<TDefinition, T>
 {
   async send(message: T): Promise<void> {
-    return super.add(message);
+    const job = await this.add(message);
   }
 }

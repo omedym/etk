@@ -1,4 +1,5 @@
 import type { JobsOptions, Queue } from 'bullmq';
+import { createId } from '@paralleldrive/cuid2';
 
 import type { IMessage, IUnknownMessage } from './Message';
 import type { MessageBinding } from './MessageBinding';
@@ -28,9 +29,17 @@ export abstract class AbstractMessageQueue<
   readonly definition: TDefinition;
   protected _queue: Queue;
   protected _defaultJobsOptions: JobsOptions = {
-    attempts: 5,
+    attempts: 3,
     backoff: { type: 'exponential', delay: 500 },
     removeOnComplete: true,
+  }
+
+  constructor(
+    queue: Queue,
+    jobsOptions?: JobsOptions,
+  ) {
+    this._queue = queue;
+    if (jobsOptions) this._defaultJobsOptions = jobsOptions;
   }
 
   isAllowed(message: T): boolean {
@@ -41,10 +50,13 @@ export abstract class AbstractMessageQueue<
     return false;
   }
 
-  protected async add(message: T): Promise<void> {
-    if (this.isAllowed(message) == false)
+  protected async add(message: T) {
+    if (this.isAllowed(message) === false)
       throw Error(`${this.constructor.name} does not allow: ${message.type}`);
 
-    throw new Error('NOT IMPLEMENTED');
+    const jobId = createId();
+    const type = message?.type ? message.type : 'com.unknown';
+
+    return this._queue.add(type, message, { jobId });
   }
 }
