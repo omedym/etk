@@ -1,3 +1,4 @@
+import { Queue } from 'bullmq';
 import { IMessage, IMessageDefinition, AbstractMessageFactory, IMessageMetadata } from '..';
 import { AbstractMessageConsumer } from './MessageConsumer';
 import { IMessageConsumerDefinition } from './MessageConsumer';
@@ -59,23 +60,28 @@ describe('Consumer', () => {
   const message_a = new TestMessageA().build('', '', data);
   const message_b = new TestMessageB().build('', '', data);
 
+  const queue: Queue = jest.mocked<Queue>({
+    add: jest.fn(),
+  } as unknown as Queue)
+
   it('checks if a message is allowed', () => {
-    const sut = new TestConsumer();
+    const sut = new TestConsumer(queue);
     expect(sut.isAllowed(message_a)).toBeTruthy();
   });
 
   it('checks if a message is not allowed', () => {
-    const sut = new TestConsumer();
+    const sut = new TestConsumer(queue);
     expect(sut.isAllowed(message_b)).toBeFalsy();
   });
 
   it('sends an allowed message', async () => {
-    const sut = new TestConsumer();
-    await expect(sut.send(message_a)).rejects.toThrowError('NOT IMPLEMENTED');
+    const sut = new TestConsumer(queue);
+    await sut.send(message_a);
+    expect(queue.add).toBeCalled();
   });
 
   it('prevents sending messages not specified as allowed', async () => {
-    const sut = new TestConsumer();
-    await expect(sut.send(message_a)).rejects.toThrow();
+    const sut = new TestConsumer(queue);
+    await expect(sut.send(message_b)).rejects.toThrow();
   });
 });

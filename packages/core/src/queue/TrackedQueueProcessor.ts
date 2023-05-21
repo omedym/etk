@@ -1,6 +1,7 @@
 import { OnWorkerEvent } from '@nestjs/bullmq';
 import { Inject, Injectable } from '@nestjs/common';
 import { Job } from 'bullmq';
+import { DateTime } from 'luxon';
 
 import { TrackedQueueRepository } from '@omedym/nestjs-dmq-repository-postgres';
 
