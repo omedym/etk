@@ -25,28 +25,39 @@ export abstract class TrackedQueueProcessor<
   };
 
   async process(job: Job<T>, token?: string): Promise<any> {
-    job.log(`Job ${job.id} Processing: ${job.name}`);
-    this.logger.info(`Job ${job.id} Processing: ${job.name}`);
+    const logMsg = `Queue: ${job.queueName} Job: ${job.id} Processing: ${job.name}`;
+    this.logger.info(logMsg);
+    job.log(`${DateTime.now().toISO()} info ${logMsg}`);
   }
 
   async pause(): Promise<void> {
+    this.logger.info(`Processor Paused`);
     await this.worker.pause();
   }
 
   @OnWorkerEvent('active')
   async onActive(job: Job<T>, prev: string) {
-    await this.jobEventQueue.trackActive(job, prev);
+    const logMsg = `Queue: ${job.queueName} ${job.id} Active: ${JSON.stringify(prev)}`;
+    this.logger.info(logMsg);
+    job.log(`${DateTime.now().toISO()} info ${logMsg}`);
+
+    await this.jobEventQueue.trackActive(job, prev).catch(error => { this.logger.error(error)});
   }
 
   @OnWorkerEvent('completed')
   async onCompleted(job: Job<T>) {
-    await this.jobEventQueue.trackCompleted(job, 'active');
+    const logMsg = `${DateTime.now().toISO()} Queue: ${job.queueName} Job: ${job.id} Completed: ${JSON.stringify(job.returnvalue)}`;
+    this.logger.info(logMsg);
+    job.log(`${DateTime.now().toISO()} info ${logMsg}`);
 
-    this.worker
+    await this.jobEventQueue.trackCompleted(job, 'active').catch(error => { this.logger.error(error)});
   }
 
   @OnWorkerEvent('error')
   async onError(error: Error) {
+    const logMsg = `Processor Error: ${error.name} { message: ${error.message} cause: ${error.cause} }`;
+    this.logger.warn(logMsg);
+
     try {
       error?.message.startsWith('Missing lock for job')
         ? this.logger.debug('Missing lock for job', error)
@@ -59,16 +70,28 @@ export abstract class TrackedQueueProcessor<
 
   @OnWorkerEvent('failed')
   async onFailed(job: Job<T>, error: Error, prev: string) {
+    const logMsg = `Queue: ${job.queueName} Job: ${job.id} Failed: ${error.name} { message: ${error.message} cause: ${error.cause} }`;
+    this.logger.info(logMsg);
+    job.log(`${DateTime.now().toISO()} info ${logMsg}`);
+
     await this.jobEventQueue.trackFailed(job, error, prev);
   };
 
   @OnWorkerEvent('progress')
   async onProgress(job: Job<T>, progress: number | object) {
+    const logMsg = `Queue: ${job.queueName} Job: ${job.id} Progress: ${typeof(progress) === 'object' ? JSON.stringify(progress) : progress}`;
+    this.logger.info(logMsg);
+    job.log(`${DateTime.now().toISO()} info ${logMsg}`);
+
     await this.jobEventQueue.trackProgress(job, progress);
   }
 
   @OnWorkerEvent('stalled')
   async onStalled(job: Job<T>, prev: string) {
+    const logMsg = `Queue: ${job.queueName} Job: ${job.id} Stalled: ${JSON.stringify(prev)}`;
+    this.logger.info(logMsg);
+    job.log(`${DateTime.now().toISO()} info ${logMsg}`);
+
     await this.jobEventQueue.trackStalled(job, prev);
   }
 }
