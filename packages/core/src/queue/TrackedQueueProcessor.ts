@@ -17,13 +17,9 @@ export abstract class TrackedQueueProcessor<
   T extends IMessage | IUnknownMessage = any
 > extends TypedWorkerHost<T> {
 
-  constructor(
-    readonly trackedQueueRepository: TrackedQueueRepository,
-    readonly jobEventQueue: TrackedJobEventQueue,
-    @Inject(Providers.ILogger) readonly logger: ILogger,
-  ) {
-    super();
-  };
+  @Inject(TrackedQueueRepository) readonly trackedQueueRepository: TrackedQueueRepository;
+  @Inject(TrackedJobEventQueue) readonly jobEventQueue: TrackedJobEventQueue;
+  @Inject(Providers.ILogger) readonly logger: ILogger;
 
   async process(job: Job<T>, token?: string): Promise<any> {
     const logMsg = `Queue: ${job.queueName} Job: ${job.id} Processing: ${job.name}`;
