@@ -134,13 +134,14 @@ class TestTrackedQueueListener extends TrackedQueueListener {
   override async onResumed() { this.log(`Queue Resumed`) };
 }
 
-type MessageJobData = { id: string; tenantid: string; data: object };
+type MessageJobData = { id: string; tenantid: string; data: object, type: string };
 type OtherJobData = { id: string; };
 type EmptyJobData = {};
 type TestJobData = MessageJobData | OtherJobData | EmptyJobData;
 
 const generateTestMessage = (data: IMessage | IUnknownMessage = {}): MessageJobData => { return {
   data,
+  type: 'org.test.message',
   id: createId(),
   tenantid: '!!',
 }};
@@ -384,8 +385,11 @@ describe('TrackedProcessor', () => {
       const jobId1 = cuid + '-1';
       const jobId2 = cuid + '-2';
 
-      await producer.queue.add(jobId1, generateTestMessage(), { jobId: jobId1 });
-      await producer.queue.add(jobId2, generateTestMessage(), { jobId: jobId2 });
+      const msg1 = generateTestMessage();
+      const msg2 = generateTestMessage();
+
+      await producer.queue.add(msg1.type, msg1, { jobId: jobId1 });
+      await producer.queue.add(msg2.type, msg2, { jobId: jobId2 });
 
       await processor.worker.delay(TestConfig.bullMq.delayMs);
 
@@ -393,18 +397,19 @@ describe('TrackedProcessor', () => {
       // console.warn(`consoleLogs:`, JSON.stringify(spies.console.info.mock.calls, null, 2));
 
       expect(spies.queue.onAdded).toHaveBeenCalledTimes(2);
-      expect(listener.logs).toContain(`[001] Job ${jobId1} Added: ${jobId1}`);
-      expect(listener.logs).toContain(`[002] Job ${jobId2} Added: ${jobId2}`);
+      expect(listener.logs).toContain(`[001] Job ${jobId1} Added: ${msg1.type}`);
+      expect(listener.logs).toContain(`[002] Job ${jobId2} Added: ${msg2.type}`);
 
-      // expect(spies.console.info).toHaveBeenCalledWith(`Job ${jobId1} Processing: ${jobId1}`);
-      // expect(spies.console.info).toHaveBeenCalledWith(`Job ${jobId2} Processing: ${jobId2}`);
+      expect(spies.console.info).toHaveBeenCalledWith(expect.stringContaining(`Queue Job Added jobId: ${jobId1} name: ${msg1.type} id:`));
+      expect(spies.console.info).toHaveBeenCalledWith(expect.stringContaining(`Queue Job Added jobId: ${jobId2} name: ${msg2.type} id:`));
     });
 
     it('can track a job being added', async () => {
       const spies = insertQueueSpies();
 
       const jobId = createId();
-      producer.queue.add(jobId, generateTestMessage(), { jobId: jobId });
+      const msg = generateTestMessage();
+      producer.queue.add(msg.type, msg, { jobId: jobId });
 
       // await processor.worker.delay(TestConfig.bullMq.delayMs);
       await trackedJobEventProcessor.worker.delay(TestConfig.bullMq.delayMs);
@@ -417,7 +422,7 @@ describe('TrackedProcessor', () => {
       expect(result!.events!.length).toBeGreaterThan(1);
       expect(result!.events![1].state).toEqual('active');
 
-      // expect(spies.console.info).toHaveBeenCalledWith(`Job ${jobId} Processing: ${jobId}`);
+      expect(spies.console.info).toHaveBeenCalledWith(expect.stringContaining(`Queue Job Added jobId: ${jobId} name: ${msg.type} id:`));
     });
 
     it('can track a job being completed', async () => {
