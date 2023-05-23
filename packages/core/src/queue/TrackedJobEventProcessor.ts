@@ -78,7 +78,7 @@ export class TrackedJobEventProcessor extends TypedWorkerHost<TrackedJobEventDat
     if (!exists) {
       const created = await this.repository.trackJob({
         tenantId: event.tenantId,
-        queueGroupId: 'queueGroup',
+        queueGroupId: null,
         queueId: event.queueId,
         jobId: event.jobId,
         event: JobEvent.workerJobActive,
