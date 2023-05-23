@@ -1,4 +1,4 @@
 export const Providers = {
   ILogger: 'ILOGGER',
-  TrackedJobEventQueue: 'TrackedJobEventQueue',
+  TrackedJobEventQueue: '__trackedJobEvents',
 }
