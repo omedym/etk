@@ -1,52 +1,20 @@
 import { InjectQueue } from '@nestjs/bullmq';
+import { Injectable } from '@nestjs/common';
+import { createId } from '@paralleldrive/cuid2';
 import { Job, Queue } from 'bullmq';
 import { DateTime } from 'luxon';
 
 import { JobEvent, JobState } from '@omedym/nestjs-dmq-repository-postgres';
 
 import { Providers } from '../providers';
-import { IMessage, IUnknownMessage } from '../message';
+import { TrackedJobEventData } from './TrackedJobEventData.type';
 
-
-export type TrackedJobEventData = TrackedJobEventDataFull | TrackedJobEventDataCompact;
-
-export type TrackedJobEventDataFull = {
-  queueId: string;
-  tenantId: string;
-  jobId: string;
-  data: IMessage | IUnknownMessage;
-  state: JobState,
-  statePrev: JobState;
-  metadata: {
-    attemptsMade?: number;
-    delay?: number;
-    failedReason?: string;
-    progress?: number | object;
-    runAt?: string;
-    receivedAt?: string | null;
-    stackTrace?: string[];
-  },
-  createdAt?: DateTime;
-  updatedAt?: DateTime;
-}
-
-export type TrackedJobEventDataCompact = {
-  queueId: string;
-  tenantId: string;
-  jobId: string;
-  metadata: {
-    delay?: number;
-    failedReason?: string;
-    runAt?: string;
-  },
-  createdAt?: DateTime;
-  updatedAt?: DateTime;
-}
 
 /**
  * This queue receives events generated from TrackedProcessors and is
  * used to enqueue updates for the persistent datastore.
  */
+@Injectable()
 export class TrackedJobEventQueue {
 
   defaultOptions = {
@@ -55,7 +23,9 @@ export class TrackedJobEventQueue {
     removeOnComplete: true,
   }
 
-  constructor(@InjectQueue(Providers.TrackedJobEventQueue) public queue: Queue) { }
+  constructor(
+    @InjectQueue(Providers.TrackedJobEventQueue) public queue: Queue,
+  ) { }
 
   async trackActive(job: Job, prev: string) {
     const event = {
@@ -64,7 +34,7 @@ export class TrackedJobEventQueue {
       updatedAt: DateTime.fromMillis(job.processedOn!),
     };
 
-    this.queue.add(JobEvent.workerJobActive, event, { ...this.defaultOptions });
+    this.queue.add(JobEvent.workerJobActive, event, { jobId: createId(), ...this.defaultOptions });
   }
 
   async trackCompleted(job: Job, prev: string) {
@@ -74,7 +44,7 @@ export class TrackedJobEventQueue {
       createdAt: DateTime.fromMillis(job.finishedOn!),
     };
 
-    this.queue.add(JobEvent.workerJobCompleted, event, { ...this.defaultOptions });
+    this.queue.add(JobEvent.workerJobCompleted, event, { jobId: createId(), ...this.defaultOptions });
   }
 
   async trackDelayed(queueId: string, jobId: string, delay: number, id: string) {
@@ -92,7 +62,7 @@ export class TrackedJobEventQueue {
       createdAt: timestampAt.toISO(),
     };
 
-    this.queue.add(JobEvent.queueJobDelayed, event, { ...this.defaultOptions });
+    this.queue.add(JobEvent.queueJobDelayed, event, { jobId: createId(), ...this.defaultOptions });
   }
 
   async trackFailed(job: Job, error: Error, prev: string) {
@@ -101,7 +71,7 @@ export class TrackedJobEventQueue {
       createdAt: DateTime.fromMillis(job.finishedOn!),
     };
 
-    this.queue.add(JobEvent.workerJobFailed, event, { ...this.defaultOptions });
+    this.queue.add(JobEvent.workerJobFailed, event, { jobId: createId(), ...this.defaultOptions });
   }
 
   async trackProgress(job: Job, progress: number | object ) {
@@ -110,7 +80,7 @@ export class TrackedJobEventQueue {
       createdAt: DateTime.fromMillis(job.processedOn!),
     };
 
-    this.queue.add(JobEvent.workerJobProgress, event, { ...this.defaultOptions });
+    this.queue.add(JobEvent.workerJobProgress, event, { jobId: createId(), ...this.defaultOptions });
   }
 
   async trackStalled(job: Job, prev: string ) {
@@ -119,7 +89,7 @@ export class TrackedJobEventQueue {
       createdAt: DateTime.fromMillis(job.processedOn!),
     };
 
-    this.queue.add(JobEvent.workerJobStalled, event, { ...this.defaultOptions });
+    this.queue.add(JobEvent.workerJobStalled, event, { jobId: createId(), ...this.defaultOptions });
   }
 
   async buildTrackEventFromWorkerEvent(job: Job, prev?: string): Promise<TrackedJobEventData> {

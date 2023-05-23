@@ -47,7 +47,7 @@ export abstract class TrackedQueueProcessor<
 
   @OnWorkerEvent('completed')
   async onCompleted(job: Job<T>) {
-    const logMsg = `${DateTime.now().toISO()} Queue: ${job.queueName} Job: ${job.id} Completed: ${JSON.stringify(job.returnvalue)}`;
+    const logMsg = `Queue: ${job.queueName} Job: ${job.id} Completed: ${JSON.stringify(job.returnvalue)}`;
     this.logger.info(logMsg);
     job.log(`${DateTime.now().toISO()} info ${logMsg}`);
 
