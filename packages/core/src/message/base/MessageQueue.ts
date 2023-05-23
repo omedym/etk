@@ -9,6 +9,7 @@ export interface IMessageQueueDefinition {
   queueGroupId?: string;
   description?: string;
   bindings: MessageBinding[];
+  jobsOptions?: JobsOptions;
 }
 
 export interface IMessageQueue<
@@ -27,18 +28,20 @@ export abstract class AbstractMessageQueue<
   implements IMessageQueue<TDefinition, T>
 {
   readonly definition: TDefinition;
-  protected _queue: Queue;
+
   protected _defaultJobsOptions: JobsOptions = {
     attempts: 3,
-    backoff: { type: 'exponential', delay: 500 },
+    backoff: { type: 'exponential', delay: 1000 },
     removeOnComplete: true,
   }
+  protected _queue: Queue;
 
   constructor(
     queue: Queue,
     jobsOptions?: JobsOptions,
   ) {
     this._queue = queue;
+    if (this.definition?.jobsOptions) this._defaultJobsOptions = this.definition.jobsOptions;
     if (jobsOptions) this._defaultJobsOptions = jobsOptions;
   }
 
