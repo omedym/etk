@@ -77,7 +77,7 @@ export function setTrackedJobTelemetry<T extends IMessage>(
   context: IMessageHandlerContext<T>,
 ): TrackedJobTelemetryResult {
 
-  const { job, message, messageDefinition, messageQueueDefinition, token } = context;
+  const { job, message, messageDefinition, messageQueueDefinition } = context;
 
   const tags = {
     jobId: job.id,
@@ -94,6 +94,7 @@ export function setTrackedJobTelemetry<T extends IMessage>(
     queue: null,
   }
 
+  const contextObj = { job: { ...job, data: null, queue: null, scripts: null, returnValue: null }, message };
   // Build the BullMQ integrated job logger
   const jobLogger = buildJobLogger(logger, job, {
     ...tags,
@@ -108,7 +109,7 @@ export function setTrackedJobEventTelemetry(
   context: { job: Job<TrackedJobEventData>; message: TrackedJobEventContext, token?: string; },
 ): TrackedJobTelemetryResult {
 
-  const { job, message, token } = context;
+  const { job, message } = context;
 
   const tags = {
     jobEventId: message.jobEventId,
