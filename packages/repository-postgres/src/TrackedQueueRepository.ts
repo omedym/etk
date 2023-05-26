@@ -12,6 +12,12 @@ import {
 } from './types';
 
 
+const {
+  NESTJS_DMQ__QUEUE_SUFFIX = '',
+} = process.env;
+
+export const QueueSuffix = NESTJS_DMQ__QUEUE_SUFFIX ? `-${NESTJS_DMQ__QUEUE_SUFFIX}` : undefined;
+
 @Injectable()
 export class TrackedQueueRepository {
   constructor(@Inject(providers.PRISMA) private readonly prisma: PrismaService) {}
@@ -49,11 +55,12 @@ export class TrackedQueueRepository {
   async trackJob<T extends object>(
     jobToTrack: CreateTrackedJobParams<T>
   ): Promise<ITrackedQueueJob<T>> {
-    const { createdAt, event, log, metadata, ...eventData } = jobToTrack;
+    const { createdAt, event, log, metadata, queueId, ...eventData } = jobToTrack;
     const timestampAt = createdAt && createdAt.isValid ? createdAt : DateTime.now();
     const trackedJob = await this.prisma.trackedQueueJob.create({
       data: {
         ...eventData,
+        queueId: QueueSuffix ? queueId.replace(QueueSuffix, '') : queueId,
         createdAt: timestampAt.toJSDate(),
         updatedAt: timestampAt.toJSDate(),
 
