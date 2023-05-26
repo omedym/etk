@@ -72,7 +72,7 @@ type TrackedJobTelemetryResult = {
 }
 
 /** Configure Logger telemetry for a Job and Message */
-export function setTrackedJobTelemetry<T extends IMessage>(
+export function setTrackedJobTelemetry<T extends IMessage | IUnknownMessage>(
   logger: ILogger,
   context: IMessageHandlerContext<T>,
 ): TrackedJobTelemetryResult {
@@ -85,7 +85,7 @@ export function setTrackedJobTelemetry<T extends IMessage>(
     messageType: message.type,
     queueId: QueueSuffix ? job.queueName.replace(QueueSuffix, '') : job.queueName,
 
-    tenantId: message.tenantid === message.context.tenantId ? message.context.tenantId : '!!',
+    tenantId: message.tenantid === message?.context?.tenantId ? message?.context?.tenantId : '!!',
 
     jobEventId: null,
     jobEventType: null,

@@ -66,6 +66,7 @@ const mockLogger = {
   error: (message: string, error: Error) => console.error(message, error),
   debug: jest.fn(),
   // debug: (x: any, y: any) => console.debug(x, y),
+  apply: jest.fn(),
 } as unknown as ILogger;
 
 /** Monitor A BullMQ Queue Using BullMQ Queue Events */
