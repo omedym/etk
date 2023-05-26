@@ -15,6 +15,7 @@ import {
   TrackedJobEventDataCompact,
   TrackedJobEventDataFull,
 } from './TrackedJobEventData.type';
+import { setTrackedJobEventTelemetry } from './TrackedJobTelemetry';
 
 /**
  * This worker processes events generated from TrackedProcessors and is
@@ -43,33 +44,37 @@ export class TrackedJobEventProcessor extends TypedWorkerHost<TrackedJobEventDat
       tenantId: (job.data as TrackedJobEventDataFull)?.tenantId,
     };
 
-    this.logger.info(`Processing Job Event: ${context.jobId}-${context.jobEventId} ${job.name}`,  { context });
+    const { jobLogger } = setTrackedJobEventTelemetry(this.logger, { job, message: context, token });
+
+    jobLogger.info(`Processing Job Event: ${context.jobId}-${context.jobEventId} ${job.name}`,  { context });
 
     switch(job.name) {
       // Worker Events
       case JobEvent.workerJobActive:
-        return this.onWorkerJobActive(context, job.data as TrackedJobEventDataFull);
+        return this.onWorkerJobActive(jobLogger, context, job.data as TrackedJobEventDataFull);
       case JobEvent.workerJobCompleted:
-        return this.onWorkerJobCompleted(context, job.data as TrackedJobEventDataFull);
+        return this.onWorkerJobCompleted(jobLogger, context, job.data as TrackedJobEventDataFull);
       case JobEvent.workerJobFailed:
-        return this.onWorkerJobFailed(context, job.data as TrackedJobEventDataFull);
+        return this.onWorkerJobFailed(jobLogger, context, job.data as TrackedJobEventDataFull);
       case JobEvent.workerJobProgress:
-        return this.onWorkerJobProgress(context, job.data as TrackedJobEventDataFull)
+        return this.onWorkerJobProgress(jobLogger, context, job.data as TrackedJobEventDataFull)
       case JobEvent.workerJobStalled:
-        return this.onWorkerJobStalled(context, job.data as TrackedJobEventDataFull)
+        return this.onWorkerJobStalled(jobLogger, context, job.data as TrackedJobEventDataFull)
 
       // Queue Events
       case JobEvent.queueJobDelayed:
-        return this.onQueueJobDelayed(context, job.data as TrackedJobEventDataCompact)
+        return this.onQueueJobDelayed(jobLogger, context, job.data as TrackedJobEventDataCompact)
 
       default:
-        throw new Error(`Unsupported Job Event State ${context.jobId}-${context.jobEventId} ${job.name}`);
+        const logMsg = `Unsupported Job Event State ${context.jobId}-${context.jobEventId} ${job.name}`;
+        jobLogger.warn(logMsg)
+        throw new Error(logMsg);
     }
   }
 
-  async onWorkerJobActive(context: TrackedJobEventContext, event: TrackedJobEventDataFull) {
-    this.logger.debug(`Processing Job Event: ${context.jobId}-${context.jobEventId} ${context.jobEventType}`, { context, event });
-    const jobAndLog = await this.fetchJobAndLog(context);
+  async onWorkerJobActive(logger: ILogger, context: TrackedJobEventContext, event: TrackedJobEventDataFull) {
+    logger.debug(`Processing Job Event: ${context.jobId}-${context.jobEventId} ${context.jobEventType}`, { context, event });
+    const jobAndLog = await this.fetchJobAndLog(logger, context);
 
     const exists = await this.repository.findJobById({
       tenantId: event.tenantId,
@@ -110,10 +115,10 @@ export class TrackedJobEventProcessor extends TypedWorkerHost<TrackedJobEventDat
     });
   }
 
-  async onWorkerJobCompleted(context: TrackedJobEventContext, event: TrackedJobEventDataFull) {
-    this.logger.debug(`Processing Job Event: ${context.jobId}-${context.jobEventId} ${context.jobEventType}`, { context, event });
+  async onWorkerJobCompleted(logger: ILogger, context: TrackedJobEventContext, event: TrackedJobEventDataFull) {
+    logger.debug(`Processing Job Event: ${context.jobId}-${context.jobEventId} ${context.jobEventType}`, { context, event });
 
-    const jobAndLog = await this.fetchJobAndLog(context);
+    const jobAndLog = await this.fetchJobAndLog(logger, context);
 
     const { progress, ...restOfMetadata } = event.metadata;
 
@@ -139,10 +144,10 @@ export class TrackedJobEventProcessor extends TypedWorkerHost<TrackedJobEventDat
     });
   }
 
-  async onWorkerJobFailed(context: TrackedJobEventContext, event: TrackedJobEventDataFull) {
-    this.logger.debug(`Processing Job Event: ${context.jobId}-${context.jobEventId} ${context.jobEventType}`, { context, event });
+  async onWorkerJobFailed(logger: ILogger, context: TrackedJobEventContext, event: TrackedJobEventDataFull) {
+    logger.debug(`Processing Job Event: ${context.jobId}-${context.jobEventId} ${context.jobEventType}`, { context, event });
 
-    const jobAndLog = await this.fetchJobAndLog(context);
+    const jobAndLog = await this.fetchJobAndLog(logger, context);
 
     const updated = await this.repository.updateTrackedJob({
       jobEventId: context.jobEventId,
@@ -161,10 +166,10 @@ export class TrackedJobEventProcessor extends TypedWorkerHost<TrackedJobEventDat
     });
   }
 
-  async onWorkerJobProgress(context: TrackedJobEventContext, event: TrackedJobEventDataFull) {
-    this.logger.debug(`Processing Job Event: ${context.jobId}-${context.jobEventId} ${context.jobEventType}`, { context, event });
+  async onWorkerJobProgress(logger: ILogger, context: TrackedJobEventContext, event: TrackedJobEventDataFull) {
+    logger.debug(`Processing Job Event: ${context.jobId}-${context.jobEventId} ${context.jobEventType}`, { context, event });
 
-    const jobAndLog = await this.fetchJobAndLog(context);
+    const jobAndLog = await this.fetchJobAndLog(logger, context);
 
     const updated = await this.repository.updateTrackedJob({
       jobEventId: context.jobEventId,
@@ -183,10 +188,10 @@ export class TrackedJobEventProcessor extends TypedWorkerHost<TrackedJobEventDat
     });
   }
 
-  async onWorkerJobStalled(context: TrackedJobEventContext, event: TrackedJobEventDataFull) {
-    this.logger.debug(`Processing Job Event: ${context.jobId}-${context.jobEventId} ${context.jobEventType}`, { context, event });
+  async onWorkerJobStalled(logger: ILogger, context: TrackedJobEventContext, event: TrackedJobEventDataFull) {
+    logger.debug(`Processing Job Event: ${context.jobId}-${context.jobEventId} ${context.jobEventType}`, { context, event });
 
-    const jobAndLog = await this.fetchJobAndLog(context);
+    const jobAndLog = await this.fetchJobAndLog(logger, context);
 
     const updated = await this.repository.updateTrackedJob({
       jobEventId: context.jobEventId,
@@ -205,11 +210,11 @@ export class TrackedJobEventProcessor extends TypedWorkerHost<TrackedJobEventDat
     });
   }
 
-  async onQueueJobDelayed(context: TrackedJobEventContext, event: TrackedJobEventDataCompact) {
-    this.logger.debug(`Processing Job Event: ${context.jobId}-${context.jobEventId} ${context.jobEventType}`, { context, event });
+  async onQueueJobDelayed(logger: ILogger, context: TrackedJobEventContext, event: TrackedJobEventDataCompact) {
+    logger.debug(`Processing Job Event: ${context.jobId}-${context.jobEventId} ${context.jobEventType}`, { context, event });
 
     const job = await this.repository.findJobByJobId(event.jobId)
-    const jobAndLog = await this.fetchJobAndLog({...context, tenantId: job.tenantId });
+    const jobAndLog = await this.fetchJobAndLog(logger, {...context, tenantId: job.tenantId });
 
     const { ...restOfMetadata } = event.metadata;
 
@@ -230,20 +235,20 @@ export class TrackedJobEventProcessor extends TypedWorkerHost<TrackedJobEventDat
     });
   }
 
-  async fetchJobAndLog(context: TrackedJobEventContext) {
-    this.logger.debug(`Fetching Job Log for ${context.jobId}`,  { context });
+  async fetchJobAndLog(logger: ILogger, context: TrackedJobEventContext) {
+    logger.debug(`Fetching Job Log for ${context.jobId}`,  { context });
 
     try {
       const { queueId, jobId } = context;
       const queueToken = getQueueToken(queueId);
 
-      this.logger.debug(`Connect to tracked queue: ${queueId} with queueToken: ${queueToken}`, context);
+      logger.debug(`Connect to tracked queue: ${queueId} with queueToken: ${queueToken}`, context);
       const queue = this.moduleRef.get<Queue>(queueToken, { strict: false });
 
-      this.logger.debug(`Get jobId: ${jobId}`,  { context });
+      logger.debug(`Get jobId: ${jobId}`,  { context });
       const job = await queue.getJob(jobId);
 
-      this.logger.debug(`Get job logs for jobId: ${jobId}`,  { context });
+      logger.debug(`Get job logs for jobId: ${jobId}`,  { context });
       const jobLog = await queue.getJobLogs(jobId!);
 
       const jobAndLog = {
@@ -254,7 +259,7 @@ export class TrackedJobEventProcessor extends TypedWorkerHost<TrackedJobEventDat
       return jobAndLog;
     }
     catch(error: any) {
-      this.logger.warn(error.message, error);
+      logger.warn(error.message, error);
       return { job: undefined, log: undefined };
     }
   }
