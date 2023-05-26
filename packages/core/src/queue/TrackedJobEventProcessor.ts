@@ -33,7 +33,8 @@ export class TrackedJobEventProcessor extends TypedWorkerHost<TrackedJobEventDat
     super();
   };
 
-  async process(job: Job<TrackedJobEventData>) {
+  // @Transaction({ op: 'process', startNewTrace: true, clearContextFor: DefaultClearContext })
+  async process(job: Job<TrackedJobEventData>, token?: string) {
     const context: TrackedJobEventContext = {
       jobEventId: job.id,
       jobEventType: job.name,
