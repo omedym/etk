@@ -4,7 +4,7 @@ import { JobState } from '@omedym/nestjs-dmq-repository-postgres';
 
 import { IMessage, IUnknownMessage } from '../message';
 
-export type TrackedJobEventContext =  {
+export type TrackedJobEventContext = {
   jobEventId: string | undefined;
   jobEventType: string;
   jobId: string;
