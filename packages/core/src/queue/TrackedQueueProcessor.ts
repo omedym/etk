@@ -20,13 +20,13 @@ export interface IMessageHandlerContext<T extends IMessage | IUnknownMessage> {
   token?: string;
 }
 
-export interface IMessageRouter<T extends IMessage> {
+export interface IMessageRouter<T extends IMessage | IUnknownMessage> {
   route: (logger: ILogger, context: IMessageHandlerContext<T>) => Promise<any>;
 }
 
 @Injectable()
 export abstract class TrackedQueueProcessor<
-  T extends IMessage = any
+  T extends IMessage | IUnknownMessage = any
 > extends TypedWorkerHost<T> {
 
   @Inject(TrackedQueueRepository) readonly trackedQueueRepository: TrackedQueueRepository;
