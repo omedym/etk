@@ -1,5 +1,5 @@
 import { IMessageQueueDefinition } from './MessageQueue';
-import { MessageDefinition, Message } from '..';
+import { MessageDefinition, Message, IMessage, IUnknownMessage } from '..';
 
 /**
  * Base interface for describing bindings between messages and queues, such
@@ -40,16 +40,13 @@ export interface IFanOutMessageBinding extends IBaseMessageBinding  {
 }
 
 /**
- * @deprecated
- * Not supported yet
- *
  * Sends messages to queues and corresponding handlers depending on successful matches
  * between a message and the binding's pattern matcher.
  */
-export interface ITopicMessageBinding extends IBaseMessageBinding  {
+export interface ITopicMessageBinding<T extends IMessage = never> extends IBaseMessageBinding {
   dir: 'out';
-  pattern: <TMessage extends Message>(message: TMessage) => boolean;
-  toQueue: IMessageQueueDefinition[];
+  pattern: (message: T) => boolean;
+  toQueue: IMessageQueueDefinition | IMessageQueueDefinition[];
 }
 
 export type InboundMessageBinding =
