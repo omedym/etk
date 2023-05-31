@@ -1,6 +1,6 @@
 import { isMatching, P } from 'ts-pattern';
 import { IUnknownMessage } from './Message';
-import { IMessageDefinition } from '..';
+import { IMessageDefinition, IMessageQueueDefinition } from '..';
 
 import { IMessageExchangeDefinition } from './MessageExchange';
 import type { IEvent, IEventDefinition } from '../Event';
@@ -77,8 +77,8 @@ describe('Message Binding', () => {
         pattern: (e: IUnknownMessage) => isMatching({ type: TestEventDefinition.cloudEvent.type }, e),
       };
 
-      expect(sut.toQueue[0]).toEqual(TestQueue);
-      expect(sut.toQueue[1]).toEqual(TestOtherQueue);
+      expect((sut.toQueue as IMessageQueueDefinition[])[0]).toEqual(TestQueue);
+      expect((sut.toQueue as IMessageQueueDefinition[])[1]).toEqual(TestOtherQueue);
     });
 
     it('supports strong typing when defining a pattern match', () => {
@@ -95,11 +95,13 @@ describe('Message Binding', () => {
         source: ''
       };
 
-      const sut: ITopicMessageBinding = {
+      type TestMessage = typeof message;
+
+      const sut: ITopicMessageBinding<TestMessage> = {
         dir: 'out',
         msg: TestEventDefinition,
         toQueue: [TestQueue, TestOtherQueue],
-        pattern: (e: IUnknownMessage) => isMatching({ type: TestEventDefinition.cloudEvent.type }, e),
+        pattern: (m) => isMatching({ type: TestEventDefinition.cloudEvent.type }, m),
       };
 
       expect(sut.pattern(message)).toBeTruthy();
