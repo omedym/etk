@@ -54,7 +54,7 @@ export abstract class TrackedQueueProcessor<
     const context = { job, message: job.data as T, token };
     const { jobLogger } = setTrackedJobTelemetry(this.logger, context);
 
-    jobLogger.info(`Queue: ${job.queueName} Job: ${job.id} Processing: ${job.name}`);
+    jobLogger.info(`Queue: ${job.queueName} Job: ${job.id} Processing: ${job.name} Message: ${job.data?.id}`, { message: job.data });
 
     return this.messageRouter
       ? this.messageRouter && this.messageRouter.route(jobLogger, context)
