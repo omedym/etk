@@ -110,7 +110,7 @@ export abstract class TrackedQueueProcessor<
   // @Transaction({ name: 'onWorkerEvent', op: 'progress', clearContextFor: DefaultClearContext })
   async onProgress(job: Job<T>, progress: number | object) {
     const { jobLogger } = setTrackedJobTelemetry(this.logger, { job, message: job.data as T });
-    jobLogger.warn(`Queue: ${job.queueName} Job: ${job.id} Progress: ${typeof(progress) === 'object' ? JSON.stringify(progress) : progress}`);
+    jobLogger.info(`Queue: ${job.queueName} Job: ${job.id} Progress: ${typeof(progress) === 'object' ? JSON.stringify(progress) : progress}`);
     await this.jobEventQueue.trackProgress(job, progress);
   }
 
