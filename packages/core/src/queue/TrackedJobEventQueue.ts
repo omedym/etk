@@ -114,9 +114,9 @@ export class TrackedJobEventQueue {
   }
 
   /**
-     * If numeric progress is provided we ensure that it is factored into a percentile
-     * friendly range between 0.0 and 1.0. Otherwise return an object or undefined.
-     */
+   * If numeric progress is provided we ensure that it is factored into a percentile
+   * friendly range between 0.0 and 1.0. Otherwise return an object or undefined.
+   */
   recalcProgress(progress?: number | object) {
     if(typeof(progress) === 'object') return progress;
 
