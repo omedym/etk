@@ -29,7 +29,6 @@ export abstract class TrackedQueueProcessor<
   T extends IMessage | IUnknownMessage = any
 > extends TypedWorkerHost<T> {
 
-  @Inject(TrackedQueueRepository) readonly trackedQueueRepository: TrackedQueueRepository;
   @Inject(TrackedJobEventQueue) readonly jobEventQueue: TrackedJobEventQueue;
   @Inject(Providers.ILogger) readonly logger: ILogger;
 
