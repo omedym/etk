@@ -3,7 +3,7 @@ import { DateTime } from 'luxon';
 import stableStringify from 'safe-stable-stringify';
 
 import { IMessageHandlerContext } from './TrackedQueueProcessor';
-import { IMessage } from '../message';
+import { IMessage, IUnknownMessage } from '../message';
 import { TrackedJobEventContext, TrackedJobEventData } from './TrackedJobEventData.type';
 import { ILogger } from '../telemetry';
 
