@@ -85,13 +85,13 @@ export abstract class TrackedQueueProcessor<
   @OnWorkerEvent('error')
   // @Transaction({ name: 'onWorkerEvent', op: 'error', clearContextFor: DefaultClearContext })
   async onError(error: Error) {
-    const logMsg = `Processor Error: ${error.name} { message: ${error.message} cause: ${error.cause} }`;
-    this.logger.warn(logMsg);
-
     try {
+      const logMsg = `Processor Error: ${error?.name} { message: ${error?.message} cause: ${error?.cause} }`;
+      this.logger.info(logMsg);
+
       error?.message.startsWith('Missing lock for job')
         ? this.logger.debug('Missing lock for job', error)
-        : this.logger.error(error)
+        : this.logger.warn(logMsg, error)
     } catch (e) {
       this.logger.error(error);
       throw error;
