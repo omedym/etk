@@ -6,5 +6,5 @@ import { IMessageExchangeDefinition } from './MessageExchange';
  * The base interface for defining gateways and the types of messages they allow.
  */
 export interface IMessageGatewayDefinition extends IMessageExchangeDefinition {
-  gatewayType: 'command' | 'event' | 'query' | 'message';
+  gatewayType: 'command' | 'event' | 'query' | 'task' | 'message';
 }
