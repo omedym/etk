@@ -1,3 +1,5 @@
+import { Job } from 'bullmq';
+
 import { IMessageGatewayDefinition, AbstractMessageExchange } from './base';
 import { ITask } from './Task';
 
@@ -10,7 +12,7 @@ export interface ITaskGateway<
   T extends ITask = any,
 > {
   readonly definition: TDefinition;
-  send: (Task: T) => Promise<void>
+  send(task: T): Promise<Job<T>>;
 }
 
 export abstract class AbstractTaskGateway<
@@ -20,7 +22,7 @@ export abstract class AbstractTaskGateway<
   extends AbstractMessageExchange<TDefinition>
   implements ITaskGateway<TDefinition, T>
 {
-  async send(Task: T): Promise<void> {
-    return this.publishOrSend(Task);
+  async send(task: T): Promise<Job<T>> {
+    throw new Error(`Method not implemented`);
   }
 }

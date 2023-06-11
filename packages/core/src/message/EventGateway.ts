@@ -1,3 +1,5 @@
+import type { Job } from 'bullmq';
+
 import { IMessageGatewayDefinition, AbstractMessageExchange } from './base';
 import { IEvent } from './Event';
 
@@ -10,7 +12,7 @@ export interface IEventGateway<
   T extends IEvent = any,
 > {
   readonly definition: TDefinition;
-  publish: (event: T) => Promise<void>;
+  publish: (event: T) => Promise<Job<T>>;
 }
 
 export abstract class AbstractEventGateway<
@@ -20,7 +22,7 @@ export abstract class AbstractEventGateway<
   extends AbstractMessageExchange<TDefinition>
   implements IEventGateway<TDefinition, T>
 {
-    async publish(event: T): Promise<void> {
+    async publish(event: T): Promise<Job<T>> {
       return this.publishOrSend(event);
   }
 }
