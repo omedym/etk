@@ -1,9 +1,24 @@
 import { Queue } from 'bullmq';
+
+import { ILogger } from '../../telemetry';
+
 import { IMessage, IMessageDefinition, AbstractMessageFactory, IMessageMetadata } from '..';
 import { AbstractMessageQueue } from './MessageQueue';
 import { IMessageQueueDefinition } from './MessageQueue';
 
 describe('MessageQueue', () => {
+  let logEntries: { msg: string; data: any }[] = [];
+
+  beforeEach(() => {
+    logEntries = [];
+  });
+
+  const logger = {
+    debug: jest.fn((msg, data ) => logEntries.push({ msg: `[debug] ${msg}`, data })),
+    error: jest.fn((msg, data ) => logEntries.push({ msg: `[error] ${msg}`, data })),
+    info:  jest.fn((msg, data ) => logEntries.push({ msg: ` [info] ${msg}`, data })),
+    warn:  jest.fn((msg, data ) => logEntries.push({ msg: ` [warn] ${msg}`, data })),
+  } as unknown as ILogger;
 
   interface ITestData {}
   interface ITestMessage extends IMessage<ITestData> {}
@@ -66,23 +81,23 @@ describe('MessageQueue', () => {
   } as unknown as Queue)
 
   it('checks if a message is allowed', () => {
-    const sut = new TestQueue(queue);
+    const sut = new TestQueue(queue, logger);
     expect(sut.isAllowed(message_a)).toBeTruthy();
   });
 
   it('checks if a message is not allowed', () => {
-    const sut = new TestQueue(queue);
+    const sut = new TestQueue(queue, logger);
     expect(sut.isAllowed(message_b)).toBeFalsy();
   });
 
   it('adds an allowed message', () => {
-    const sut = new TestQueue(queue);
+    const sut = new TestQueue(queue, logger);
     sut.send(message_a);
     expect(queue.add).toBeCalled();
   });
 
   it('prevents adding messages not specified as allowed', async () => {
-    const sut = new TestQueue(queue);
+    const sut = new TestQueue(queue, logger);
     await expect(sut.send(message_b)).rejects.toThrow();
   });
 });

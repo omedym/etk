@@ -1,7 +1,7 @@
 import { BullModule } from '@nestjs/bullmq';
 import { Module } from '@nestjs/common';
 
-import { configurePostgresModule, RepositoryPostgresModule, TrackedQueueRepository } from '@omedym/nestjs-qmf-repository-postgres';
+import { configurePostgresModule, RepositoryPostgresModule, TrackedQueueRepository } from '@omedym/nestjs-dmq-repository-postgres';
 
 import { configureRedisConnection } from './redis.connect';
 import { TrackedJobEventProcessor, TrackedJobEventQueue } from './queue';

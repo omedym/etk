@@ -1,6 +1,8 @@
 import { createId } from '@paralleldrive/cuid2';
 import { JobsOptions, Queue } from 'bullmq';
 
+import { ILogger } from '../../telemetry';
+
 import type { IMessage, IUnknownMessage } from './Message';
 import type { MessageBinding } from './MessageBinding';
 
@@ -28,19 +30,22 @@ export abstract class AbstractMessageQueue<
   implements IMessageQueue<TDefinition, T>
 {
   readonly definition: TDefinition;
+  protected readonly queue: Queue;
+  protected readonly logger: ILogger;
 
   protected _defaultJobsOptions: JobsOptions = {
     attempts: 3,
     backoff: { type: 'exponential', delay: 1000 },
     removeOnComplete: true,
   }
-  protected _queue: Queue;
-
   constructor(
     queue: Queue,
+    logger: ILogger,
     jobsOptions?: JobsOptions,
   ) {
-    this._queue = queue;
+    this.queue = queue;
+    this.logger = logger;
+
     if (this.definition?.jobsOptions) this._defaultJobsOptions = this.definition.jobsOptions;
     if (jobsOptions) this._defaultJobsOptions = jobsOptions;
   }
@@ -56,6 +61,7 @@ export abstract class AbstractMessageQueue<
   protected async add(message: T, options?: JobsOptions) {
     if (this.isAllowed(message) === false) {
       const logMsg = `${this.constructor.name} does not allow: ${message.type}`;
+      this.logger.warn(logMsg, { message, options });
       throw Error(logMsg);
     }
 
@@ -63,6 +69,7 @@ export abstract class AbstractMessageQueue<
     const jobOptions = { ...options, jobId };
     const type = message?.type ? message.type : 'com.unknown';
 
-    return this._queue.add(type, message, jobOptions);
+    this.logger.info(`Enqueuing ${type} message: ${message.id}`, { jobId, message, options: jobOptions, type })
+    return this.queue.add(type, message, jobOptions);
   }
 }

@@ -1,9 +1,24 @@
 import { Queue } from 'bullmq';
+
+import { ILogger } from '../telemetry';
+
 import { AbstractMessageFactory, AbstractMessageExchange } from "./base";
 import { IEvent, IEventDefinition, IEventMetadata } from "./Event";
 import { AbstractEventGateway, IEventGatewayDefinition } from "./EventGateway";
 
 describe('EventGateway', () => {
+  let logEntries: { msg: string; data: any }[] = [];
+
+  beforeEach(() => {
+    logEntries = [];
+  });
+
+  const logger = {
+    debug: jest.fn((msg, data ) => logEntries.push({ msg: `[debug] ${msg}`, data })),
+    error: jest.fn((msg, data ) => logEntries.push({ msg: `[error] ${msg}`, data })),
+    info:  jest.fn((msg, data ) => logEntries.push({ msg: ` [info] ${msg}`, data })),
+    warn:  jest.fn((msg, data ) => logEntries.push({ msg: ` [warn] ${msg}`, data })),
+  } as unknown as ILogger;
 
   interface ITestData {}
   interface ITestEvent extends IEvent<ITestData> {}
@@ -66,23 +81,23 @@ describe('EventGateway', () => {
   } as unknown as Queue)
 
   it('can check if a message is allowed', () => {
-    const sut = new TestEventGateway(queue);
+    const sut = new TestEventGateway(queue, logger);
     expect(sut.isAllowed(event_a)).toBeTruthy();
   });
 
   it('can check if a message is not allowed', () => {
-    const sut = new TestEventGateway(queue);
+    const sut = new TestEventGateway(queue, logger);
     expect(sut.isAllowed(event_b)).toBeFalsy();
   });
 
   it('publishes or sends an allowed message', async () => {
-    const sut = new TestEventGateway(queue);
+    const sut = new TestEventGateway(queue, logger);
     await sut.publish(event_a);
     expect(queue.add).toBeCalled();
   });
 
   it('prevents publishing or sending messages not specified as allowed', async () => {
-    const sut = new TestEventGateway(queue);
+    const sut = new TestEventGateway(queue, logger);
     await expect(sut.publish(event_b)).rejects.toThrow();
   });
 });
