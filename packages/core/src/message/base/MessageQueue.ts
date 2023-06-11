@@ -1,5 +1,5 @@
-import type { JobsOptions, Queue } from 'bullmq';
 import { createId } from '@paralleldrive/cuid2';
+import { JobsOptions, Queue } from 'bullmq';
 
 import type { IMessage, IUnknownMessage } from './Message';
 import type { MessageBinding } from './MessageBinding';
@@ -53,13 +53,16 @@ export abstract class AbstractMessageQueue<
     return false;
   }
 
-  protected async add(message: T) {
-    if (this.isAllowed(message) === false)
-      throw Error(`${this.constructor.name} does not allow: ${message.type}`);
+  protected async add(message: T, options?: JobsOptions) {
+    if (this.isAllowed(message) === false) {
+      const logMsg = `${this.constructor.name} does not allow: ${message.type}`;
+      throw Error(logMsg);
+    }
 
     const jobId = createId();
+    const jobOptions = { ...options, jobId };
     const type = message?.type ? message.type : 'com.unknown';
 
-    return this._queue.add(type, message, { jobId });
+    return this._queue.add(type, message, jobOptions);
   }
 }
