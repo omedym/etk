@@ -9,3 +9,4 @@ export * from './MessageFactory';
 export * from './MessageGateway';
 export * from './MessageMetadata';
 export * from './MessageQueue';
+export * from './MessageQueueTelemetry';
