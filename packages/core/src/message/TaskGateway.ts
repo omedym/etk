@@ -23,8 +23,7 @@ export interface ITaskGateway<
 }
 
 export type ScheduleAtOptions = {
-  /** Frequency Task Reoccurs expressed as an ISO Duration */
-  frequency: Duration | string;
+  /** Approximate time to run Task at expressed as an ISO 8601 Timestamp or Luxon DateTime */
   runAt: DateTime | string;
   /** Task Name/Key */
   name?: string;
