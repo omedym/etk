@@ -217,18 +217,17 @@ export abstract class AbstractTaskGateway<
   protected async removeExistingRepeatableJobs({ id, name }: { id: string; name: string; }) {
     this.logger.debug(`Checking for existing repeatable job with jobId: ${id} or name: ${name}`);
 
-    this.queue.getRepeatableJobs().then((jobs) => {
-      this.logger.debug(`Retrieved ${jobs && jobs.length} repeatable jobs`)
+    const jobs = await this.queue.getRepeatableJobs();
+    this.logger.debug(`Retrieved ${jobs && jobs.length} repeatable jobs`)
 
-      jobs.forEach(async (job) => {
-        this.logger.debug(`Reviewing repeatable jobId: ${job.id} jobName:${job.name}`);
+    jobs.map(async (job) => {
+      this.logger.debug(`Reviewing repeatable jobId: ${job.id} jobName:${job.name}`, { job });
 
-        if (!job.id.includes(id) && !(job.name === name))
-          return;
+      if (!job.id.includes(id) && !(job.name === name))
+        return;
 
-        this.logger.info(`Removing prior repeatable job definition ${job.name}`);
-        await this.queue.removeRepeatableByKey(job.key);
-      })
+      this.logger.info(`Removing prior repeatable job definition ${job.name}`);
+      await this.queue.removeRepeatableByKey(job.key);
     });
   }
 
@@ -242,21 +241,20 @@ export abstract class AbstractTaskGateway<
   protected async removeExistingDelayedJob({ id, name }: { id: string; name: string; }) {
     this.logger.debug(`Checking for existing delayed job with jobId: ${id} or name: ${name}`);
 
-    this.queue.getDelayed().then((jobs) => {
-      this.logger.debug(`Retrieved ${jobs && jobs.length} delayed jobs`)
+    const jobs = await this.queue.getDelayed();
+    this.logger.debug(`Retrieved ${jobs && jobs.length} delayed jobs`);
 
-      jobs.forEach(async (job) => {
-        this.logger.debug(`Reviewing delayed jobId: ${job.id} jobName:${job.name}`);
+    jobs.map(async (job) => {
+      this.logger.debug(`Reviewing delayed jobId: ${job.id} jobName:${job.name}`);
 
-        const isIdMatch = job.id && job.id.includes(id);
-        const isNameMatch = job.name === name;
+      const isIdMatch = job.id && job.id.includes(id);
+      const isNameMatch = job.name === name;
 
-        if (!isIdMatch && !isNameMatch)
-          return;
+      if (!isIdMatch && !isNameMatch)
+        return;
 
-        this.logger.info(`Removing delayed jobId: ${job.id} jobName:${job.name}`);
-        await job.remove();
-      })
+      this.logger.info(`Removing delayed jobId: ${job.id} jobName:${job.name}`);
+      await job.remove();
     });
   }
 }

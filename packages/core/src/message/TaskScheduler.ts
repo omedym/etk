@@ -18,7 +18,7 @@ export abstract class AbstractTaskScheduler<T extends ITaskGateway> {
   }
 
   async schedule() {
-    this.logger.info(`Schedule ${this.scheduledTasks.length} in ${this.constructor.name}`);
+    this.logger.info(`Scheduling ${this.scheduledTasks.length} tasks in ${this.constructor.name}`);
 
     this.scheduledTasks.map(async taskToSchedule => {
       try {
