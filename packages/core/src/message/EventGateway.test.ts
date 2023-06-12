@@ -1,10 +1,10 @@
 import { Queue } from 'bullmq';
 
 import { ILogger } from '../telemetry';
+import { AbstractMessageFactory } from './base';
+import { IEvent, IEventDefinition, IEventMetadata } from './Event';
+import { AbstractEventGateway, IEventGatewayDefinition } from './EventGateway';
 
-import { AbstractMessageFactory, AbstractMessageExchange } from "./base";
-import { IEvent, IEventDefinition, IEventMetadata } from "./Event";
-import { AbstractEventGateway, IEventGatewayDefinition } from "./EventGateway";
 
 describe('EventGateway', () => {
   let logEntries: { msg: string; data: any }[] = [];
@@ -101,4 +101,3 @@ describe('EventGateway', () => {
     await expect(sut.publish(event_b)).rejects.toThrow();
   });
 });
-

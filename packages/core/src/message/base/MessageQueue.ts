@@ -1,10 +1,10 @@
 import { createId } from '@paralleldrive/cuid2';
 import { JobsOptions, Queue } from 'bullmq';
 
-import { ILogger } from '../../telemetry';
-
+import type { ILogger } from '../../telemetry';
 import type { IMessage, IUnknownMessage } from './Message';
 import type { MessageBinding } from './MessageBinding';
+
 
 export interface IMessageQueueDefinition {
   queueId: string;

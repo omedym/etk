@@ -1,34 +1,38 @@
-
-import { ILogger } from '../../telemetry';
+import { ILogger, LogContext } from '../../telemetry';
 import { IMessageQueueDefinition } from './MessageQueue';
+import { findMessageLogContext } from './MessageTelemetry';
 
 
 /**
  * @description
- * Builds a specialized Job specific logger that when used logs its messages
- * both to the Job object's log and the configured system logger.
+ * Builds a specialized Queue specific logger that when used extracts context
  */
 const buildQueueLogger = (
   logger: ILogger,
-  metadata: Record<string, string | undefined | null>,
+  context: LogContext,
 ): ILogger => {
   // const _logger = logger as ILogger;
 
   return {
     debug: (message: any, ...optionalParams: any[]) => {
-      // _logger.apply('debug', metadata, message, ...optionalParams);
+      const queueContext = findMessageLogContext(context, { ...optionalParams });
+      // _logger.apply('debug', queueContext, message, ...optionalParams);
     },
     info: (message: any, ...optionalParams: any[]) => {
-      // _logger.apply('info', metadata, message, ...optionalParams);
+      const queueContext = findMessageLogContext(context, { ...optionalParams });
+      // _logger.apply('info', queueContext, message, ...optionalParams);
     },
     log: (message: any, ...optionalParams: any[]) => {
-      // _logger.apply('log', metadata, message, ...optionalParams);
+      const queueContext = findMessageLogContext(context, { ...optionalParams });
+      // _logger.apply('log', queueContext, message, ...optionalParams);
     },
     error: (message: any, ...optionalParams: any[]) => {
-      // _logger.apply('error', metadata, message, ...optionalParams);
+      const queueContext = findMessageLogContext(context, { ...optionalParams });
+      // _logger.apply('error', queueContext, message, ...optionalParams);
     },
     warn: (message: any, ...optionalParams: any[]) => {
-      // _logger.apply('warn', metadata, message, ...optionalParams);
+      const queueContext = findMessageLogContext(context, { ...optionalParams });
+      // _logger.apply('warn', queueContext, message, ...optionalParams);
     }
   };
 };
