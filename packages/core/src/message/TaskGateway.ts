@@ -30,7 +30,7 @@ export type ScheduleAtOptions = {
 }
 
 export type ScheduleEveryOptions = {
-  /** Frequency Task reoccurs expressed as an ISO Duration */
+  /** Frequency Task reoccurs expressed as an ISO 8601 Duration or Luxon Duration */
   frequency?: Duration | string;
   /** Pattern Task reoccurs expressed as a Unix Cron expression */
   pattern?: string;
@@ -44,8 +44,6 @@ export type ScheduleEveryOptions = {
   endAt?: DateTime | string;
 }
 
-type FixedRepeatOptions = {}
-
 export abstract class AbstractTaskGateway<
   TDefinition extends ITaskGatewayDefinition = ITaskGatewayDefinition,
   T extends ITask = any,
@@ -58,12 +56,9 @@ export abstract class AbstractTaskGateway<
     task: T,
     opts: ScheduleAtOptions,
   ): Promise<Job<T>> {
-    this.logger.debug(`Params`, { task, options: opts }); // at: typeof at === 'string' ? at : at.toISO() });
+    this.logger.debug(`Params`, { task, options: opts });
 
-    const runAt = typeof opts.runAt === 'string'
-      ? DateTime.fromISO(opts.runAt)
-      : opts.runAt;
-
+    const runAt = forDateTime(opts.runAt);
     if (runAt.isValid === false) {
       const logMsg = `Cannot schedule task; runAt is invalid`;
       const checkOptions = { isValid: false, error: [runAt.invalidExplanation] };
@@ -111,21 +106,15 @@ export abstract class AbstractTaskGateway<
       throw new Error(logMsg, { cause: { checkOptions } });
     }
 
-    const frequency = typeof opts.frequency === 'string'
-      ? Duration.fromISO(opts.frequency)
-      : opts.frequency;
+    const frequency = opts.frequency ? forDuration(opts.frequency) : undefined;
     const frequencyIso = frequency?.toISO();
     const frequencyMs = frequency?.toMillis();
     const frequencyHuman = frequency?.toHuman();
 
     const tz = opts.timeZone && this.isValidTz(opts.timeZone).timeZone;
     const tzAbbreviation = tz ? tz.abbreviation : 'Etc/UTC';
-    const startAt = typeof opts.startAt === 'string'
-      ? DateTime.fromISO(opts.startAt)
-      : opts.startAt;
-    const endAt = typeof opts.endAt === 'string'
-      ? DateTime.fromISO(opts.endAt)
-      : opts.endAt;
+    const startAt = opts.startAt ? forDateTime(opts.startAt) : undefined;
+    const endAt = opts.endAt ? forDateTime(opts.endAt) : undefined;
 
     // Form a jobId for the repeatable job based on a hash of the message data
     // so we can find previous instances based on configuration as we only allow
@@ -137,7 +126,7 @@ export abstract class AbstractTaskGateway<
     const jobNameQualifier = opts.pattern
       ? opts.pattern.replace(' ', '-') + '-' + tzAbbreviation
       : frequencyIso;
-    const jobName = `${jobNameBase}}_${jobNameQualifier}`;
+    const jobName = `${jobNameBase}_${jobNameQualifier}`;
 
     // Configure the BullMQ job options
     const jobRepeatOptions: RepeatOptions = frequency
@@ -178,19 +167,12 @@ export abstract class AbstractTaskGateway<
     let error: string[] = [];
 
     try {
-      const isValidTimeZone = !!opts.timeZone && this.isValidTz(opts.timeZone);
-      const isValidPattern = !!opts.pattern && isValidCron(opts.pattern, { seconds: true, allowSevenAsSunday: true});
+      const isValidFrequency = opts.frequency && forDuration(opts.frequency).isValid;
 
-      const isValidFrequency = opts.frequency && typeof opts.frequency === 'string'
-        ? Duration.fromISO(opts.frequency).isValid
-        : (opts.frequency as Duration).isValid;
-
-      const isValidStartAt = opts.startAt && typeof opts.startAt === 'string'
-        ? DateTime.fromISO(opts.startAt).isValid
-        : (opts.startAt as DateTime).isValid;
-      const isValidEndAt = opts.endAt && typeof opts.endAt === 'string'
-        ? DateTime.fromISO(opts.endAt).isValid
-        : (opts.endAt as DateTime).isValid;
+      const isValidPattern = opts.pattern && isValidCron(opts.pattern, { seconds: true, allowSevenAsSunday: true});
+      const isValidTimeZone = opts.timeZone && this.isValidTz(opts.timeZone).isValid;
+      const isValidStartAt = opts.startAt && forDateTime(opts.startAt).isValid;
+      const isValidEndAt = opts.endAt && forDateTime(opts.endAt).isValid;
 
       if(!opts.frequency && !opts.pattern)
         error.push(`Missing frequency or pattern`);
@@ -219,7 +201,7 @@ export abstract class AbstractTaskGateway<
 
     } catch (e) {
       this.logger.error('checkScheduleEveryOptions unknown error', e);
-      return { isValid: false, error: ['Unknown error occurred'] };
+      return { isValid: false, error: ['Unknown error occurred']};
     }
 
     return { isValid: error.length === 0, error };
@@ -278,3 +260,13 @@ export abstract class AbstractTaskGateway<
     });
   }
 }
+
+/** Return a DateTime when input value can be either a DateTime or String */
+export const forDateTime = (value: DateTime | string): DateTime => {
+  return (value == typeof 'DateTime' ? value : DateTime.fromISO(value as string)) as DateTime;
+};
+
+/** Return a Duration when input value can be either a Duration or String */
+export const forDuration = (value: Duration | string): Duration => {
+  return (value == typeof 'Duration' ? value : Duration.fromISO(value as string)) as Duration;
+};
