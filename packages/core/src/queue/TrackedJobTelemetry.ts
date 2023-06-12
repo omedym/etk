@@ -1,11 +1,11 @@
 import { Job } from 'bullmq';
 import { DateTime } from 'luxon';
-import stableStringify from 'safe-stable-stringify';
 
-import { IMessageHandlerContext } from './TrackedQueueProcessor';
+import { ILogger, LogContext } from '../telemetry';
 import { IMessage, IUnknownMessage } from '../message';
+import { IMessageHandlerContext } from './TrackedQueueProcessor';
 import { TrackedJobEventContext, TrackedJobEventData } from './TrackedJobEventData.type';
-import { ILogger } from '../telemetry';
+import { findMessageLogContext } from '../message/base/MessageTelemetry';
 
 
 const {
@@ -24,30 +24,35 @@ export const DefaultClearContext = ['Tracked Job', 'Tracked Job Event'];
 const buildJobLogger = (
   logger: ILogger,
   job: Job,
-  metadata: Record<string, string | undefined | null>, // | { jobId?: string; tenantId?: string; traceId?: string; messageId?: string;}
+  context: LogContext,
 ): ILogger => {
   const timestamp = DateTime.now().toISO();
 
   // const _logger = logger as ILogger;
 
   return {
-    debug: function (message: any, ...optionalParams: any[]) {
+    debug: (message: any, ...optionalParams: any[]) => {
+      const jobContext = findMessageLogContext(context, { ...optionalParams });
       // _logger.apply('debug', metadata, message, ...optionalParams);
       job.log(`${timestamp} debug ${message}`);
     },
-    info: function (message: any, ...optionalParams: any[]): void {
+    info: (message: any, ...optionalParams: any[]): void => {
+      const jobContext = findMessageLogContext(context, { ...optionalParams });
       // _logger.apply('info', metadata, message, ...optionalParams);
       job.log(`${timestamp} info  ${message}`);
     },
-    log: function (message: any, ...optionalParams: any[]): void {
+    log: (message: any, ...optionalParams: any[]): void => {
+      const jobContext = findMessageLogContext(context, { ...optionalParams });
       // _logger.apply('log', metadata, message, ...optionalParams);
       job.log(`${timestamp} debug ${message}`);
     },
-    error: function (message: any, ...optionalParams: any[]) {
+    error: (message: any, ...optionalParams: any[]) => {
+      const jobContext = findMessageLogContext(context, { ...optionalParams });
       // _logger.apply('error', metadata, message, ...optionalParams);
       job.log(`${timestamp} error ${message}`);
     },
-    warn: function (message: any, ...optionalParams: any[]) {
+    warn: (message: any, ...optionalParams: any[]) => {
+      const jobContext = findMessageLogContext(context, { ...optionalParams });
       // _logger.apply('warn', metadata, message, ...optionalParams);
       job.log(`${timestamp} warn  ${message}`);
     }
@@ -94,11 +99,12 @@ export function setTrackedJobTelemetry<T extends IMessage | IUnknownMessage>(
     queue: null,
   }
 
-  const contextObj = { job: { ...job, data: null, queue: null, scripts: null, returnValue: null }, message };
+  const logContext: LogContext = {
+    ...tags as any,
+  };
+
   // Build the BullMQ integrated job logger
-  const jobLogger = buildJobLogger(logger, job, {
-    ...tags,
-  });
+  const jobLogger = buildJobLogger(logger, job, logContext);
 
   return { jobLogger };
 }
@@ -125,10 +131,12 @@ export function setTrackedJobEventTelemetry(
     queue: null,
   }
 
+  const logContext: LogContext = {
+    ...tags as any,
+  };
+
   // Build the BullMQ integrated job logger
-  const jobLogger = buildJobLogger(logger, job, {
-    ...tags,
-  });
+  const jobLogger = buildJobLogger(logger, job, logContext);
 
   return { jobLogger };
 }

@@ -1,10 +1,10 @@
 import { Queue } from 'bullmq';
 
-import { ILogger } from '../../telemetry';
-
-import { IMessage, IMessageDefinition, AbstractMessageFactory, IMessageMetadata } from '..';
 import { AbstractMessageExchange } from './MessageExchange';
+import { ILogger } from '../../telemetry';
+import { IMessage, IMessageDefinition, AbstractMessageFactory, IMessageMetadata } from '..';
 import { IMessageExchangeDefinition } from './MessageExchange';
+
 
 describe('Exchange', () => {
   let logEntries: { msg: string; data: any }[] = [];
