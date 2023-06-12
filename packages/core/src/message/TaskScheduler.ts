@@ -1,29 +1,38 @@
 import { ILogger } from '../telemetry';
-import { ITaskGateway, ITaskGatewayDefinition } from './TaskGateway';
+import { ITaskGateway, ScheduleAtOptions, ScheduleEveryOptions } from './TaskGateway';
 import { ITask } from './Task';
 
 
-export abstract class AbstractTaskScheduler<
-  TDefinition extends ITaskGatewayDefinition = ITaskGatewayDefinition,
-  T extends ITask = any,
-> {
-  protected readonly taskGateway: ITaskGateway<TDefinition, T>;
+export abstract class AbstractTaskScheduler<T extends ITaskGateway> {
+  protected readonly taskGateway: T;
   protected readonly logger: ILogger;
 
+  scheduledTasks: { task: ITask, opts: ScheduleAtOptions | ScheduleEveryOptions }[] = [];
+
   constructor(
-    taskGateway: ITaskGateway<TDefinition, T>,
+    taskGateway: T,
     logger: ILogger,
   ) {
     this.taskGateway = taskGateway;
     this.logger = logger;
-
-    this.register();
   }
 
-  async register() {
-    this.logger.info(`Registering scheduled tasks in ${this.constructor.name}`);
-    await this.schedule();
+  async schedule() {
+    this.logger.info(`Schedule ${this.scheduledTasks.length} in ${this.constructor.name}`);
+
+    this.scheduledTasks.map(async taskToSchedule => {
+      try {
+        (taskToSchedule.opts as any)?.runAt
+          ? await this.taskGateway.scheduleAt(taskToSchedule.task, taskToSchedule.opts as ScheduleAtOptions)
+          : await this.taskGateway.scheduleEvery(taskToSchedule.task, taskToSchedule.opts as ScheduleEveryOptions);
+      }
+      catch(e) {
+        this.logger.error(`Failed to schedule task`, e);
+      }
+    });
   }
 
-  abstract schedule(): Promise<void>
+  async registerTask(taskToSchedule: { task: ITask, opts: ScheduleAtOptions | ScheduleEveryOptions }) {
+    this.scheduledTasks.push(taskToSchedule);
+  }
 }
