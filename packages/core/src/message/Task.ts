@@ -7,7 +7,11 @@ export interface ITaskDefinition extends IRequestDefinition {
 
 export interface ITaskData extends IRequestData {}
 
-export interface ITaskMetadata extends IRequestMetadata {}
+export interface ITaskMetadata extends IRequestMetadata {
+  task: {
+    name: string;
+  },
+}
 
 /**
  * ITask
