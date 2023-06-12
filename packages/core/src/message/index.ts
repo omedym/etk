@@ -13,6 +13,7 @@ export * from './Query';
 export * from './Request';
 export * from './Task';
 export * from './TaskGateway';
+export * from './TaskScheduler';
 
 export type Message =
   | ICommand
