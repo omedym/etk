@@ -58,18 +58,20 @@ export abstract class AbstractMessageQueue<
     return false;
   }
 
-  protected async add(message: T, options?: JobsOptions) {
+  protected async add(message: T, options?: JobsOptions, name?: string) {
+    this.logger.debug(`Params`, { message, options, name });
+
     if (this.isAllowed(message) === false) {
       const logMsg = `${this.constructor.name} does not allow: ${message.type}`;
-      this.logger.warn(logMsg, { message, options });
+      this.logger.warn(logMsg, { message, options, name });
       throw Error(logMsg);
     }
 
     const jobId = createId();
     const jobOptions = { ...options, jobId };
-    const type = message?.type ? message.type : 'com.unknown';
+    const jobName = name ?? message?.type ?? 'com.unknown';
 
-    this.logger.info(`Enqueuing ${type} message: ${message.id}`, { jobId, message, options: jobOptions, type })
-    return this.queue.add(type, message, jobOptions);
+    this.logger.info(`Enqueuing ${name} message: ${message.id}`, { jobId, jobOptions, jobName, message })
+    return this.queue.add(jobName, message, jobOptions);
   }
 }

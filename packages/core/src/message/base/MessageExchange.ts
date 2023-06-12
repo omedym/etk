@@ -2,9 +2,9 @@ import type { Job, JobsOptions } from 'bullmq';
 
 import { ICommand } from '../Command';
 import { IEvent } from '../Event';
-import type { IMessage } from './Message';
 import type { IMessageQueueDefinition } from './MessageQueue';
 import { AbstractMessageQueue } from './MessageQueue';
+
 
 /**
  * IMessageExchangeDefinition
@@ -28,7 +28,7 @@ export abstract class AbstractMessageExchange<
   extends AbstractMessageQueue<TDefinition>
   implements IMessageExchange<TDefinition>
 {
-  protected async publishOrSend(message: T, options?: JobsOptions): Promise<Job<T>> {
-    return await this.add(message, options);
+  protected async publishOrSend(message: T, jobsOptions?: JobsOptions, jobName?: string): Promise<Job<T>> {
+    return await this.add(message, jobsOptions, jobName);
   }
 }
