@@ -18,7 +18,16 @@ export interface ITaskGateway<
   T extends ITask = any,
 > {
   readonly definition: TDefinition;
+  scheduleAt: (task: T, options: ScheduleAtOptions) => Promise<Job<T>>;
   scheduleEvery: (task: T, options: ScheduleEveryOptions) => Promise<Job<T>>;
+}
+
+export type ScheduleAtOptions = {
+  /** Frequency Task Reoccurs expressed as an ISO Duration */
+  frequency: Duration | string;
+  runAt: DateTime | string;
+  /** Task Name/Key */
+  name?: string;
 }
 
 export type ScheduleEveryOptions = {
@@ -45,6 +54,48 @@ export abstract class AbstractTaskGateway<
   extends AbstractMessageExchange<TDefinition>
   implements ITaskGateway<TDefinition, T>
 {
+  /** Schedule a Task */
+  async scheduleAt(
+    task: T,
+    opts: ScheduleAtOptions,
+  ): Promise<Job<T>> {
+    this.logger.debug(`Params`, { task, options: opts }); // at: typeof at === 'string' ? at : at.toISO() });
+
+    const runAt = typeof opts.runAt === 'string'
+      ? DateTime.fromISO(opts.runAt)
+      : opts.runAt;
+
+    if (runAt.isValid === false) {
+      const logMsg = `Cannot schedule task; runAt is invalid`;
+      const checkOptions = { isValid: false, error: [runAt.invalidExplanation] };
+      this.logger.error(logMsg, { task, options: opts, checkOptions });
+      throw new Error(logMsg, { cause: { checkOptions } });
+    }
+
+    const runAtIso = runAt.toISO();
+    const runAtHuman = runAt.toFormat('ffff');
+
+    // Form a jobId for the scheduled job based on a hash of the message data
+    // so we can find any instance based on configuration as we only allow
+    // a single scheduled job per.
+    const jobId = crypto.createHash('md5').update(stableStringify(task.data)).digest('hex');
+
+    // Form a jobName that can also be used to locate recurring tasks
+    const jobNameBase = opts.name ?? task.type;
+    const jobNameQualifier = runAtIso;
+    const jobName = `${jobNameBase}}_${jobNameQualifier}`;
+
+    // Configure the BullMQ job options
+    const jobOptions: JobsOptions = { jobId: jobId, delay: runAt.diffNow().milliseconds };
+
+    // Create a good logging breadcrumb
+    const scheduleMsg =  `Scheduling ${jobName} to run at ${runAtHuman} (\`${runAtIso}\`)`;
+    this.logger.info(scheduleMsg, { jobId, task, jobName, jobOptions, options: opts });
+
+    // Add the new repeatable job to the queue
+    return this.add(task, jobOptions, jobName);
+  }
+
   /** Schedule a reoccurring Task */
   async scheduleEvery(
     task: T,
@@ -176,9 +227,8 @@ export abstract class AbstractTaskGateway<
   }
 
   /**
-   * Get all existing repeatable jobs and find any that match the same configuration
-   * per the provided jobId (which is typically a hash of the message data) or its
-   * name.
+   * Remove any repeatable jobs that match the same configuration per the provided jobId (which is
+   * typically a hash of the message data) or its name.
    *
    * @param id
    * @param name
@@ -197,6 +247,34 @@ export abstract class AbstractTaskGateway<
 
         this.logger.info(`Removing prior repeatable job definition ${job.name}`);
         await this.queue.removeRepeatableByKey(job.key);
+      })
+    });
+  }
+
+  /**
+   * Remove any delayed jobs that match the same configuration per the provided jobId (which is
+   * typically a hash of the message data) or its name.
+   *
+   * @param id
+   * @param name
+   */
+  protected async removeExistingDelayedJob({ id, name }: { id: string; name: string; }) {
+    this.logger.debug(`Checking for existing delayed job with jobId: ${id} or name: ${name}`);
+
+    this.queue.getDelayed().then((jobs) => {
+      this.logger.debug(`Retrieved ${jobs && jobs.length} delayed jobs`)
+
+      jobs.forEach(async (job) => {
+        this.logger.debug(`Reviewing delayed jobId: ${job.id} jobName:${job.name}`);
+
+        const isIdMatch = job.id && job.id.includes(id);
+        const isNameMatch = job.name === name;
+
+        if (!isIdMatch && !isNameMatch)
+          return;
+
+        this.logger.info(`Removing delayed jobId: ${job.id} jobName:${job.name}`);
+        await job.remove();
       })
     });
   }
