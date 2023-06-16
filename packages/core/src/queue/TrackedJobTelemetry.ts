@@ -33,27 +33,27 @@ const buildJobLogger = (
   return {
     debug: (message: any, ...optionalParams: any[]) => {
       const jobContext = findMessageLogContext(context, { ...optionalParams });
-      // _logger.apply('debug', metadata, message, ...optionalParams);
+      // _logger.apply('debug', jobContext, message, ...optionalParams);
       job.log(`${timestamp} debug ${message}`);
     },
     info: (message: any, ...optionalParams: any[]): void => {
       const jobContext = findMessageLogContext(context, { ...optionalParams });
-      // _logger.apply('info', metadata, message, ...optionalParams);
+      // _logger.apply('info', jobContext, message, ...optionalParams);
       job.log(`${timestamp} info  ${message}`);
     },
     log: (message: any, ...optionalParams: any[]): void => {
       const jobContext = findMessageLogContext(context, { ...optionalParams });
-      // _logger.apply('log', metadata, message, ...optionalParams);
+      // _logger.apply('log', jobContext, message, ...optionalParams);
       job.log(`${timestamp} debug ${message}`);
     },
     error: (message: any, ...optionalParams: any[]) => {
       const jobContext = findMessageLogContext(context, { ...optionalParams });
-      // _logger.apply('error', metadata, message, ...optionalParams);
+      // _logger.apply('error', jobContext, message, ...optionalParams);
       job.log(`${timestamp} error ${message}`);
     },
     warn: (message: any, ...optionalParams: any[]) => {
       const jobContext = findMessageLogContext(context, { ...optionalParams });
-      // _logger.apply('warn', metadata, message, ...optionalParams);
+      // _logger.apply('warn', jobContext, message, ...optionalParams);
       job.log(`${timestamp} warn  ${message}`);
     }
   };
