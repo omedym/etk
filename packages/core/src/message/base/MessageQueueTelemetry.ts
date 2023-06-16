@@ -1,6 +1,5 @@
 import { ILogger, LogContext } from '../../telemetry';
 import { IMessageQueueDefinition } from './MessageQueue';
-import { findMessageLogContext } from './MessageTelemetry';
 
 
 /**
@@ -15,23 +14,23 @@ const buildQueueLogger = (
 
   return {
     debug: (message: any, ...optionalParams: any[]) => {
-      const queueContext = findMessageLogContext(context, { ...optionalParams });
+      // const queueContext = findMessageLogContext(context, { ...optionalParams });
       // _logger.apply('debug', queueContext, message, ...optionalParams);
     },
     info: (message: any, ...optionalParams: any[]) => {
-      const queueContext = findMessageLogContext(context, { ...optionalParams });
+      // const queueContext = findMessageLogContext(context, { ...optionalParams });
       // _logger.apply('info', queueContext, message, ...optionalParams);
     },
     log: (message: any, ...optionalParams: any[]) => {
-      const queueContext = findMessageLogContext(context, { ...optionalParams });
+      // const queueContext = findMessageLogContext(context, { ...optionalParams });
       // _logger.apply('log', queueContext, message, ...optionalParams);
     },
     error: (message: any, ...optionalParams: any[]) => {
-      const queueContext = findMessageLogContext(context, { ...optionalParams });
+      // const queueContext = findMessageLogContext(context, { ...optionalParams });
       // _logger.apply('error', queueContext, message, ...optionalParams);
     },
     warn: (message: any, ...optionalParams: any[]) => {
-      const queueContext = findMessageLogContext(context, { ...optionalParams });
+      // const queueContext = findMessageLogContext(context, { ...optionalParams });
       // _logger.apply('warn', queueContext, message, ...optionalParams);
     }
   };
