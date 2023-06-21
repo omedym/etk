@@ -71,7 +71,7 @@ export abstract class AbstractMessageQueue<
     const jobOptions = { ...options, jobId };
     const jobName = name ?? message?.type ?? 'com.unknown';
 
-    this.logger.info(`Enqueuing ${name} message: ${message.id}`, { jobId, jobOptions, jobName, message })
+    this.logger.info(`Enqueuing ${jobName} message: ${message.id}`, { jobId, jobOptions, jobName, message })
     return this.queue.add(jobName, message, jobOptions);
   }
 }
