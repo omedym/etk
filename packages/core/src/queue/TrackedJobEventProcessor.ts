@@ -73,7 +73,7 @@ export class TrackedJobEventProcessor extends TypedWorkerHost<TrackedJobEventDat
   }
 
   async onWorkerJobActive(logger: ILogger, context: TrackedJobEventContext, event: TrackedJobEventDataFull) {
-    logger.debug(`Processing Job Event: ${context.jobId}-${context.jobEventId} ${context.jobEventType}`, { context, event });
+    logger.debug(`Processing TrackedJobEvent: ${context.jobId}-${context.jobEventId} ${context.jobEventType}`, { context, event });
     const jobAndLog = await this.fetchJobAndLog(logger, context);
 
     const exists = await this.repository.findJobById({
@@ -82,6 +82,9 @@ export class TrackedJobEventProcessor extends TypedWorkerHost<TrackedJobEventDat
     });
 
     if (!exists) {
+      logger.debug(`TrackedJob jobId ${context.jobId} does not exist, creating`, { context });
+
+      logger.debug(`Creating TrackedJob jobId ${context.jobId}`, { context });
       const created = await this.repository.trackJob({
         tenantId: event.tenantId,
         queueGroupId: null,
@@ -96,6 +99,8 @@ export class TrackedJobEventProcessor extends TypedWorkerHost<TrackedJobEventDat
         metadata: event.metadata,
         log: jobAndLog.log,
       });
+
+      logger.debug(`Created TrackedJob jobId: ${context.jobId}`, { context });
     }
 
     const updated = await this.repository.updateTrackedJob({
@@ -113,6 +118,8 @@ export class TrackedJobEventProcessor extends TypedWorkerHost<TrackedJobEventDat
       },
       log: jobAndLog.log,
     });
+
+    logger.debug(`Updated TrackedJob jobId: ${context.jobId} jobEventId: ${context.jobEventId}`, { context });
   }
 
   async onWorkerJobCompleted(logger: ILogger, context: TrackedJobEventContext, event: TrackedJobEventDataFull) {
