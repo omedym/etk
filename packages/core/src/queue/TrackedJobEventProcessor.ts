@@ -5,6 +5,7 @@ import { Job, Queue } from 'bullmq';
 
 import { JobEvent, JobState, TrackedQueueRepository } from '@omedym/nestjs-dmq-repository-postgres';
 
+import { configureRedisConnection } from '../redis.connect';
 import { Providers } from '../providers';
 import { TypedWorkerHost } from './TypedWorkerHost';
 import { ILogger } from '../telemetry';
@@ -25,9 +26,7 @@ import { setTrackedJobEventTelemetry } from './TrackedJobTelemetry';
 @Processor(Providers.TrackedJobEventQueue)
 export class TrackedJobEventProcessor extends TypedWorkerHost<TrackedJobEventData> {
 
-
   constructor(
-    private moduleRef: ModuleRef,
     @Inject(TrackedQueueRepository) readonly repository: TrackedQueueRepository,
     @Inject(Providers.ILogger) readonly logger: ILogger,
   ) {
@@ -250,7 +249,7 @@ export class TrackedJobEventProcessor extends TypedWorkerHost<TrackedJobEventDat
       const queueToken = getQueueToken(queueId);
 
       logger.debug(`Connect to tracked queue: ${queueId} with queueToken: ${queueToken}`, context);
-      const queue = this.moduleRef.get<Queue>(queueToken, { strict: false });
+      const queue = new Queue(queueId, { connection: { ...configureRedisConnection() } });
 
       logger.debug(`Get jobId: ${jobId}`, { context });
       const job = await queue.getJob(jobId);
