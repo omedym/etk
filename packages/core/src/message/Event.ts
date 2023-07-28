@@ -1,4 +1,4 @@
-import { IMessageDefinition, IMessageData, IMessageMetadata, IUnknownMessageData, IMessage } from "./base";
+import { IMessageDefinition, IMessageData, IMessageMetadata, IUnknownMessageData, IMessage } from './base';
 
 
 export interface IEventDefinition extends IMessageDefinition {

@@ -1,7 +1,8 @@
-import { Message } from '..';
-import type { IMessage, IUnknownMessage } from './Message';
+import type { IMessage } from './Message';
 import type { IMessageQueueDefinition } from './MessageQueue';
+import type { Message } from '..';
 import { AbstractMessageQueue } from './MessageQueue';
+
 
 /**
  * IMessageConsumerDefinition

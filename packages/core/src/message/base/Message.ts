@@ -4,6 +4,7 @@ import type { IMessageContext } from './MessageContext';
 import type { IMessageData, IUnknownMessageData } from './MessageData';
 import type { IMessageMetadata } from './MessageMetadata';
 
+
 /**
  * IMessage
  *
