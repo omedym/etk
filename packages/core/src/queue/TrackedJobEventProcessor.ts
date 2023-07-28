@@ -245,10 +245,10 @@ export class TrackedJobEventProcessor extends TypedWorkerHost<TrackedJobEventDat
       logger.debug(`Connect to tracked queue: ${queueId} with queueToken: ${queueToken}`, context);
       const queue = this.moduleRef.get<Queue>(queueToken, { strict: false });
 
-      logger.debug(`Get jobId: ${jobId}`,  { context });
+      logger.debug(`Get jobId: ${jobId}`, { context });
       const job = await queue.getJob(jobId);
 
-      logger.debug(`Get job logs for jobId: ${jobId}`,  { context });
+      logger.debug(`Get job logs for jobId: ${jobId}`, { context });
       const jobLog = await queue.getJobLogs(jobId!);
 
       const jobAndLog = {

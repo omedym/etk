@@ -3,6 +3,7 @@ import type { Job } from 'bullmq';
 import { IMessageGatewayDefinition, AbstractMessageExchange } from './base';
 import { IEvent } from './Event';
 
+
 export interface IEventGatewayDefinition extends IMessageGatewayDefinition {
   gatewayType: 'event';
 }

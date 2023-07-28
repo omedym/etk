@@ -3,6 +3,7 @@ import { Job } from 'bullmq';
 import { IMessageGatewayDefinition, AbstractMessageExchange } from './base';
 import { ICommand } from './Command';
 
+
 export interface ICommandGatewayDefinition extends IMessageGatewayDefinition {
   gatewayType: 'command';
 }

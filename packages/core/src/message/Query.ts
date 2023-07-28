@@ -1,5 +1,6 @@
-import { IUnknownMessageData } from "./base";
-import { IRequestDefinition, IRequestData, IRequestMetadata, IRequest } from "./Request";
+import { IUnknownMessageData } from './base';
+import { IRequestDefinition, IRequestData, IRequestMetadata, IRequest } from './Request';
+
 
 export interface IQueryDefinition extends IRequestDefinition {
   messageType: 'query';

@@ -1,6 +1,7 @@
 import { IMessage } from './Message';
 import { IAllowAdditionalProperties } from './MessageData';
 
+
 describe('Message Composition', () => {
 
   interface BaseData  {

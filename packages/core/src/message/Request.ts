@@ -1,4 +1,5 @@
-import { IMessageDefinition, IMessageData, IMessageMetadata, IUnknownMessageData, IMessage } from "./base";
+import { IMessageDefinition, IMessageData, IMessageMetadata, IUnknownMessageData, IMessage } from './base';
+
 
 export interface IRequestDefinition extends IMessageDefinition {
   messageType: 'command' | 'query' | 'task';

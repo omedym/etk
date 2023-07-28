@@ -1,5 +1,6 @@
-import { IEvent, IEventDefinition, IEventMetadata } from '../Event';
 import { AbstractMessageFactory } from './MessageFactory';
+import { IEvent, IEventDefinition, IEventMetadata } from '../Event';
+
 
 describe('MessageFactory', () => {
 

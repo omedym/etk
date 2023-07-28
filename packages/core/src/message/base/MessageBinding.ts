@@ -1,5 +1,6 @@
 import { IMessageQueueDefinition } from './MessageQueue';
-import { MessageDefinition, Message, IMessage, IUnknownMessage } from '..';
+import { MessageDefinition, IMessage } from '..';
+
 
 /**
  * Base interface for describing bindings between messages and queues, such
