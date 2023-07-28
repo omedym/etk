@@ -1,4 +1,4 @@
-import { ILogger, LogContext } from '../../telemetry';
+import { ILogger, LogContext, getLogContext } from '../../telemetry';
 import { IMessageQueueDefinition } from './MessageQueue';
 
 
@@ -13,24 +13,24 @@ const buildQueueLogger = (
   // const _logger = logger as ILogger;
 
   return {
-    debug: (message: any, ...optionalParams: any[]) => {
-      // const queueContext = findMessageLogContext(context, { ...optionalParams });
+    debug: (message: string, ...optionalParams: any[]) => {
+      const queueContext = getLogContext(context, ...optionalParams);
       // _logger.apply('debug', queueContext, message, ...optionalParams);
     },
-    info: (message: any, ...optionalParams: any[]) => {
-      // const queueContext = findMessageLogContext(context, { ...optionalParams });
-      // _logger.apply('info', queueContext, message, ...optionalParams);
-    },
-    log: (message: any, ...optionalParams: any[]) => {
-      // const queueContext = findMessageLogContext(context, { ...optionalParams });
-      // _logger.apply('log', queueContext, message, ...optionalParams);
-    },
-    error: (message: any, ...optionalParams: any[]) => {
-      // const queueContext = findMessageLogContext(context, { ...optionalParams });
+    error: (message: string, ...optionalParams: any[]) => {
+      const queueContext = getLogContext(context, ...optionalParams);
       // _logger.apply('error', queueContext, message, ...optionalParams);
     },
-    warn: (message: any, ...optionalParams: any[]) => {
-      // const queueContext = findMessageLogContext(context, { ...optionalParams });
+    info: (message: string, ...optionalParams: any[]) => {
+      const queueContext = getLogContext(context, ...optionalParams);
+      // _logger.apply('info', queueContext, message, ...optionalParams);
+    },
+    log: (message: string, ...optionalParams: any[]) => {
+      const queueContext = getLogContext(context, ...optionalParams);
+      // _logger.apply('log', queueContext, message, ...optionalParams);
+    },
+    warn: (message: string, ...optionalParams: any[]) => {
+      const queueContext = getLogContext(context, ...optionalParams);
       // _logger.apply('warn', queueContext, message, ...optionalParams);
     }
   };

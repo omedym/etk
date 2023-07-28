@@ -1,7 +1,7 @@
 import { Job } from 'bullmq';
 import { DateTime } from 'luxon';
 
-import { ILogger, LogContext } from '../telemetry';
+import { ILogger, LogContext, getLogContext } from '../telemetry';
 import { IMessage, IUnknownMessage } from '../message';
 import { IMessageHandlerContext } from './TrackedQueueProcessor';
 import { TrackedJobEventContext, TrackedJobEventData } from './TrackedJobEventData.type';

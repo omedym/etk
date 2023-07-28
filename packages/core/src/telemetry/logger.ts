@@ -1,15 +1,5 @@
 import { LoggerService } from '@nestjs/common';
 
-export interface LogContext {
-  datastore?: string;
-  jobId?: string;
-  messageId?: string;
-  messageType?: string;
-  queueId?: string;
-  tenantId?: string;
-  traceId?: string;
-}
-
 export type LogLevel =
   | 'debug'
   | 'error'

@@ -463,5 +463,7 @@ describe('TrackedProcessor', () => {
       expect(result!.events!.length).toEqual(7);
       expect(result!.state).toEqual('completed');
     });
+
   });
+
 });

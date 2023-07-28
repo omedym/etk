@@ -35,6 +35,7 @@ export class PublishTrackedQueueJobEventsModule { }
 @Module({
   imports: [
     BullModule.forRoot({ connection: { ...configureRedisConnection() } }),
+    BullModule.registerQueueAsync({ name: Providers.TrackedJobEventQueue }),
     RepositoryPostgresModule.forRoot({ ...configurePostgresModule() }),
   ],
   providers: [
