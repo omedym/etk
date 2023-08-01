@@ -77,7 +77,8 @@ export abstract class TrackedQueueProcessor<
   // @Transaction({ name: 'onWorkerEvent', op: 'completed', clearContextFor: DefaultClearContext })
   async onCompleted(job: Job<T>) {
     const { jobLogger } = setTrackedJobTelemetry(this.logger, { job, message: job.data as T });
-    jobLogger.info(`Queue: ${job.queueName} Job: ${job.id} Completed: ${JSON.stringify(job.returnvalue)}`);
+    const returnValue = job.returnvalue ? `: ${JSON.stringify(job.returnvalue)}` : '';
+    jobLogger.info(`Queue: ${job.queueName} Job: ${job.id} Completed${returnValue}`);
     await this.jobEventQueue.trackCompleted(job, 'active').catch(error => { this.logger.error(error)});
   }
 
