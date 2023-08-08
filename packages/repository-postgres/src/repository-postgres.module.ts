@@ -1,6 +1,6 @@
 import { DynamicModule, Module } from '@nestjs/common';
 
-import { DefaultRepositoryPostgresServiceOptions, IRepositoryPostgresServiceOptions } from './types';
+import { DefaultRepositoryPostgresServiceOptions, IRepositoryPostgresServiceOptions } from './postgres.options';
 
 import { PrismaService } from './prisma.service';
 import { providers } from './providers';

@@ -3,9 +3,9 @@ import { Module } from '@nestjs/common';
 
 import { configurePostgresModule, RepositoryPostgresModule, TrackedQueueRepository } from '@omedym/nestjs-dmq-repository-postgres';
 
-import { configureRedisConnection } from './redis.connect';
-import { TrackedJobEventProcessor, TrackedJobEventQueue } from './queue';
 import { Providers } from './providers';
+import { TrackedJobEventProcessor, TrackedJobEventQueue } from './queue';
+import { configureRedisConnection } from './redis.connect';
 
 
 /**
