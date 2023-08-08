@@ -120,3 +120,30 @@ model TrackedQueueJobEvent {
   @@map("trackedqueue_job_event")
   @@schema("dmq")
 }
+
+// Vault
+// ------------
+
+enum VaultState {
+  active
+  deleted
+  @@schema("dmq")
+}
+
+model Vault {
+  tenantId                  String              @db.VarChar(64)
+  vaultId                   String              @db.VarChar(64) @default(cuid())
+  createdAt                 DateTime            @default(now()) @db.Timestamptz(6)
+  updatedAt                 DateTime            @default(now()) @db.Timestamptz(6)
+  state                     VaultState
+  algorithm                 String              @db.VarChar(32)
+  key                       String              @db.Text
+
+  entityType                String?             @db.VarChar(256)
+  entityId                  String?             @db.VarChar(256)
+
+  @@id(fields: [tenantId, vaultId])
+  @@unique([tenantId, entityId])
+  @@unique([tenantId, entityId, entityType])
+  @@schema("dmq")
+}

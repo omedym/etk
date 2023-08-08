@@ -1,5 +1,4 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { createId } from '@paralleldrive/cuid2';
 import { DateTime } from 'luxon';
 
 import { providers } from'./providers';
@@ -9,6 +8,9 @@ import {
   CreateTrackedJobParams,
   ITrackedQueueJob,
   UpdateTrackedJobParams,
+  Vault,
+  VaultToCreate,
+  VaultState,
 } from './types';
 
 
@@ -113,4 +115,48 @@ export class TrackedQueueRepository {
 
     return trackedJob as ITrackedQueueJob<T>;
   };
+
+   async createVault(data: VaultToCreate): Promise<Vault> {
+    return this.prisma.vault.create({
+      data: {
+        ...data,
+        state: VaultState.active,
+      },
+    });
+  }
+
+  async findVaultById({ tenantId, vaultId }: { tenantId: string; vaultId: string }): Promise<Vault | null> {
+    return this.prisma.vault.findUnique({
+      where: {
+        tenantId_vaultId: {
+          tenantId,
+          vaultId,
+        },
+      },
+    });
+  }
+
+  async findVaultByEntityId({ tenantId, entityType, entityId }: { tenantId: string; entityType: string, entityId: string }): Promise<Vault[]> {
+    return this.prisma.vault.findMany({
+      where: {
+        tenantId,
+        entityType,
+        entityId
+      },
+    });
+  }
+
+   async destroyKeysByEntityId({ tenantId, entityType, entityId }: { tenantId: string; entityType: string, entityId: string }) {
+    return this.prisma.vault.updateMany({
+      where: {
+        tenantId,
+        entityType,
+        entityId
+      },
+      data: {
+        key: '',
+        state: VaultState.deleted,
+      }
+    });
+  }
 }

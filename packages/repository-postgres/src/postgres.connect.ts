@@ -1,4 +1,4 @@
-import { IRepositoryPostgresServiceOptions } from './types/postgres.options';
+import { IRepositoryPostgresServiceOptions } from './postgres.options';
 
 const { DATABASE_URL_POSTGRES = '', ASSET_BUCKET = '' } = process.env;
 
