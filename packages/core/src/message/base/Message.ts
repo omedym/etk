@@ -72,6 +72,8 @@ export interface IMessageV1<
   specversion: string;
 
   tenantid: string;
+
+  vaultid?: string;
 }
 
 /**
