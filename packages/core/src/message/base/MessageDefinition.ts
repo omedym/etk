@@ -13,10 +13,7 @@ export interface IMessageDefinition {
   },
   encryption?: {
     [key: string | 'encryptMetadata']: {
-      algorithm: string;
-      entityId: string; // validate as key of IMessageData
-      tenantId: string; // validate as key of IMessageData
-      entityType: string;
+      type: string;
     }
   }
 }
