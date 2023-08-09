@@ -33,6 +33,7 @@ export abstract class AbstractMessageBuilder<
     data: TData,
     metadata?: TMetadata,
   ): AbstractMessageBuilder<TData, TMetadata, TMessage> {
+
     // When constructing the message we inject the provided tenantId across
     // all multiple concerns, specifically the event attribute `tenantid`, and
     // both a data payload and context payload attribute for `tenantId`.
