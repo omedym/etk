@@ -1,7 +1,14 @@
 import { randomBytes } from 'crypto';
-import { decryptMessage, encryptMessage } from './crypto';
+import { decryptMessage, encryptMessage, generateSecretKey } from './crypto';
 
 describe('crypto', () => {
+  it('should generate secret key', () => {
+    const key = generateSecretKey();
+
+    expect(key).toBeTruthy();
+    expect(key.split('.').length).toEqual(2);
+  });
+
   it('should encrypt message', () => {
     const testMessage = 'should encrypt a message';
     const { message, key } = encryptMessage({ message: testMessage });
