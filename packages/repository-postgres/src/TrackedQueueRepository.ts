@@ -12,10 +12,11 @@ import {
   VaultToCreate,
   VaultState,
 } from './types';
-
+import { decryptMessage, encryptMessage } from './utils';
 
 const {
   NESTJS_DMQ__QUEUE_SUFFIX = '',
+  NESTJS_DMQ__VAULT_SECRET_KEY = '',
 } = process.env;
 
 export const QueueSuffix = NESTJS_DMQ__QUEUE_SUFFIX ? `-${NESTJS_DMQ__QUEUE_SUFFIX}` : undefined;
@@ -117,16 +118,24 @@ export class TrackedQueueRepository {
   };
 
    async createVault(data: VaultToCreate): Promise<Vault> {
-    return this.prisma.vault.create({
+    const encryptedKey = encryptMessage({ message: data.key, key: NESTJS_DMQ__VAULT_SECRET_KEY });
+
+    const result = await this.prisma.vault.create({
       data: {
         ...data,
+        key: encryptedKey.message,
         state: VaultState.active,
       },
     });
+
+    return {
+      ...result,
+      key: data.key,
+    }
   }
 
   async findVaultById({ tenantId, vaultId }: { tenantId: string; vaultId: string }): Promise<Vault | null> {
-    return this.prisma.vault.findUnique({
+    const result = await this.prisma.vault.findUnique({
       where: {
         tenantId_vaultId: {
           tenantId,
@@ -134,15 +143,35 @@ export class TrackedQueueRepository {
         },
       },
     });
+
+    if (!result) {
+      return result;
+    }
+
+    const decryptedKey = decryptMessage({ message: result.key, key: NESTJS_DMQ__VAULT_SECRET_KEY });
+
+    return {
+      ...result,
+      key: decryptedKey.message,
+    }
   }
 
   async findVaultByEntityId({ tenantId, entityType, entityId }: { tenantId: string; entityType: string, entityId: string }): Promise<Vault[]> {
-    return this.prisma.vault.findMany({
+    const results = await this.prisma.vault.findMany({
       where: {
         tenantId,
         entityType,
         entityId
       },
+    });
+
+    return results.map(el => {
+      const decryptedKey = decryptMessage({ message: el.key, key: NESTJS_DMQ__VAULT_SECRET_KEY });
+
+      return {
+        ...el,
+        key: decryptedKey.message,
+      }
     });
   }
 

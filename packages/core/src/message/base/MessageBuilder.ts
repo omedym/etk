@@ -9,6 +9,8 @@ import crypto from 'crypto';
 import { DateTime } from 'luxon';
 import stableStringify from 'safe-stable-stringify';
 
+import { decryptMessage, encryptMessage } from '@omedym/nestjs-dmq-repository-postgres';
+
 import { DefaultMessageMetadata } from './MessageMetadata';
 
 // type ExtractMessageData<M> = M extends IMessage<infer TData> ? TData : IMessageData;
