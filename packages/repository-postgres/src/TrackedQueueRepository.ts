@@ -134,7 +134,7 @@ export class TrackedQueueRepository {
     }
   }
 
-  async findVaultById({ tenantId, vaultId }: { tenantId: string; vaultId: string }): Promise<Vault | null> {
+  async findVaultKeyById({ tenantId, vaultId }: { tenantId: string; vaultId: string }): Promise<Vault | null> {
     const result = await this.prisma.vault.findUnique({
       where: {
         tenantId_vaultId: {
@@ -156,7 +156,7 @@ export class TrackedQueueRepository {
     }
   }
 
-  async findVaultByEntityId({ tenantId, entityId, entityType }: { tenantId: string; entityId: string, entityType?: string }): Promise<Vault | null> {
+  async findVaultKeyByEntityId({ tenantId, entityId, entityType }: { tenantId: string; entityId: string, entityType?: string }): Promise<Vault | null> {
     const result = await this.prisma.vault.findUnique({
       where: {
         ...(entityType ? { tenantId_entityId_entityType: {
@@ -184,7 +184,7 @@ export class TrackedQueueRepository {
     }
   }
 
-   async destroyKeysByEntityId({ tenantId, entityType, entityId }: { tenantId: string; entityId: string, entityType?: string}) {
+   async destroyVaultKeysByEntityId({ tenantId, entityType, entityId }: { tenantId: string; entityId: string, entityType?: string}) {
     return this.prisma.vault.updateMany({
       where: {
         tenantId,
