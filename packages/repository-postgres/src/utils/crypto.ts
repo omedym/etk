@@ -1,8 +1,13 @@
 import { randomBytes, createCipheriv, createDecipheriv } from 'node:crypto';
 
-const defaultAlgorithm = 'aes-192-cbc';
+const defaultAlgorithm = 'aes-256-ctr';
+const defaultAlgorithmKeyLength = 32;
 
-export const generateSecretKey = (length: number = 24) => {
+export const getDefaultAlgorithm = () => {
+  return defaultAlgorithm;
+};
+
+export const generateSecretKey = (length: number = defaultAlgorithmKeyLength) => {
   const secretKey = randomBytes(length).toString('hex');
   const initVector = randomBytes(16).toString('hex');
 
@@ -25,7 +30,7 @@ export const encryptMessage = ({
     secretKey = Buffer.from(argSecretKey, 'hex');
     initVector = Buffer.from(argIv, 'hex');
   } else {
-    secretKey = randomBytes(24); // the length depends on algorithm
+    secretKey = randomBytes(defaultAlgorithmKeyLength);
     initVector = randomBytes(16);
   }
 

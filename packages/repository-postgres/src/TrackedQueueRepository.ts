@@ -156,31 +156,40 @@ export class TrackedQueueRepository {
     }
   }
 
-  async findVaultByEntityId({ tenantId, entityType, entityId }: { tenantId: string; entityType: string, entityId: string }): Promise<Vault[]> {
-    const results = await this.prisma.vault.findMany({
+  async findVaultByEntityId({ tenantId, entityId, entityType }: { tenantId: string; entityId: string, entityType?: string }): Promise<Vault | null> {
+    const result = await this.prisma.vault.findUnique({
       where: {
-        tenantId,
-        entityType,
-        entityId
+        ...(entityType ? { tenantId_entityId_entityType: {
+          tenantId,
+          entityId,
+          entityType,
+        } } : {
+            tenantId_entityId: {
+              tenantId,
+              entityId,
+            }
+          })
       },
     });
 
-    return results.map(el => {
-      const decryptedKey = decryptMessage({ message: el.key, key: NESTJS_DMQ__VAULT_SECRET_KEY });
+    if (!result) {
+      return result;
+    }
 
-      return {
-        ...el,
-        key: decryptedKey.message,
-      }
-    });
+    const decryptedKey = decryptMessage({ message: result.key, key: NESTJS_DMQ__VAULT_SECRET_KEY });
+
+    return {
+      ...result,
+      key: decryptedKey.message,
+    }
   }
 
-   async destroyKeysByEntityId({ tenantId, entityType, entityId }: { tenantId: string; entityType: string, entityId: string }) {
+   async destroyKeysByEntityId({ tenantId, entityType, entityId }: { tenantId: string; entityId: string, entityType?: string}) {
     return this.prisma.vault.updateMany({
       where: {
         tenantId,
+        entityId,
         entityType,
-        entityId
       },
       data: {
         key: '',
