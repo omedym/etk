@@ -73,7 +73,7 @@ export interface IMessageV1<
 
   tenantid: string;
 
-  vaultid?: string;
+  vaultkeyid?: string;
 }
 
 /**
