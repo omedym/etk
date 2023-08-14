@@ -41,4 +41,17 @@ describe('crypto', () => {
 
     expect(decrypted).toEqual(testMessage);
   });
+
+  describe('should decrypt messages, using the same key', () => {
+    const key = generateSecretKey();
+
+    test.each(['encrypt a message, 4', 'encrypt a message, 5', 'encrypt a message, 6'])(
+      `encrypt %s`,
+      (testMessage) => {
+        const { message } = encryptMessage({ message: testMessage, key });
+        const { message: decrypted } = decryptMessage({ message, key });
+        expect(decrypted).toEqual(testMessage);
+      },
+    );
+  });
 });
