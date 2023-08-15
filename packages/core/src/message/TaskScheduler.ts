@@ -1,6 +1,6 @@
 import { ILogger } from '../telemetry';
-import { ITaskGateway, ScheduleAtOptions, ScheduleEveryOptions } from './TaskGateway';
 import { ITask } from './Task';
+import { ITaskGateway, ScheduleAtOptions, ScheduleEveryOptions } from './TaskGateway';
 
 
 export abstract class AbstractTaskScheduler<T extends ITaskGateway> {
