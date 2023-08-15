@@ -2,14 +2,12 @@ import { OnWorkerEvent } from '@nestjs/bullmq';
 import { Inject, Injectable } from '@nestjs/common';
 import { Job } from 'bullmq';
 
-import { TrackedQueueRepository } from '@omedym/nestjs-dmq-repository-postgres';
-
 import { ILogger } from '../telemetry';
 import { Providers } from '../providers';
 import { IMessage, IMessageDefinition, IMessageQueueDefinition, IUnknownMessage } from '../message';
 import { TrackedJobEventQueue } from './TrackedJobEventQueue';
 import { TypedWorkerHost } from './TypedWorkerHost';
-import { DefaultClearContext, setTrackedJobTelemetry } from './TrackedJobTelemetry';
+import { setTrackedJobTelemetry } from './TrackedJobTelemetry';
 
 
 export interface IMessageHandlerContext<T extends IMessage | IUnknownMessage> {
