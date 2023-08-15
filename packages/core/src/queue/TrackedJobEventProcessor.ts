@@ -1,6 +1,5 @@
 import { Processor, getQueueToken } from '@nestjs/bullmq';
 import { Inject, Injectable } from '@nestjs/common';
-import { ModuleRef } from '@nestjs/core';
 import { Job, Queue } from 'bullmq';
 
 import { JobEvent, JobState, TrackedQueueRepository } from '@omedym/nestjs-dmq-repository-postgres';
@@ -9,7 +8,6 @@ import { configureRedisConnection } from '../redis.connect';
 import { Providers } from '../providers';
 import { TypedWorkerHost } from './TypedWorkerHost';
 import { ILogger } from '../telemetry';
-
 import {
   TrackedJobEventContext,
   TrackedJobEventData,
@@ -249,7 +247,10 @@ export class TrackedJobEventProcessor extends TypedWorkerHost<TrackedJobEventDat
       const queueToken = getQueueToken(queueId);
 
       logger.debug(`Connect to tracked queue: ${queueId} with queueToken: ${queueToken}`, context);
-      const queue = new Queue(queueId, { connection: { ...configureRedisConnection() } });
+
+      // Stat a new queue connection
+      const queue = new Queue(queueId, { connection: configureRedisConnection() });
+      await queue.waitUntilReady();
 
       logger.debug(`Get jobId: ${jobId}`, { context });
       const job = await queue.getJob(jobId);
@@ -262,10 +263,13 @@ export class TrackedJobEventProcessor extends TypedWorkerHost<TrackedJobEventDat
         log: jobLog.logs,
       }
 
+      // Close the queue connection!
+      await queue.close();
+
       return jobAndLog;
     }
     catch(error: any) {
-      logger.warn(error.message, error);
+      logger.warn(`Unable to fetchJobAndLog: ${error?.message}`, error);
       return { job: undefined, log: undefined };
     }
   }

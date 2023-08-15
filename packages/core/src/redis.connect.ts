@@ -1,11 +1,4 @@
-import { RedisOptions } from 'ioredis';
-
-const {
-  REDIS_HOST = 'localhost',
-  REDIS_PORT = '6379',
-} = process.env;
-
-const REDIS_TLS: boolean = toBoolean(process.env.REDIS_TLS) ?? true;
+import { RedisOptions } from 'bullmq';
 
 /**
  * Returns a Redis connection configuration
@@ -17,8 +10,8 @@ const REDIS_TLS: boolean = toBoolean(process.env.REDIS_TLS) ?? true;
  * @default
  * {
  *   host: 'localhost',           // REDIS_HOST
- *   port: 6379,                  // REDIS_PORT
- *   tls: true,                   // REDIS_TLS
+ *   port:  6379,                 // REDIS_PORT
+ *   tls:  'enable',              // REDIS_TLS
  *   maxRetriesPerRequest: null,
  *   enableReadyCheck: true,
  * }
@@ -30,6 +23,15 @@ const REDIS_TLS: boolean = toBoolean(process.env.REDIS_TLS) ?? true;
 export const configureRedisConnection = (
   options?: RedisOptions
 ): RedisOptions => {
+
+  const {
+    REDIS_HOST = 'localhost',
+    REDIS_PORT = '6379',
+    REDIS_TLS  = 'enable',
+  } = process.env;
+
+  const enableTls: boolean = toBoolean(REDIS_TLS) ?? true;
+
   return {
     host: REDIS_HOST,
     port: parseInt(REDIS_PORT),
@@ -39,13 +41,11 @@ export const configureRedisConnection = (
     maxRetriesPerRequest: null,
 
     // TODO: Deprecate checkServerIdentity workaround in Redis TLS configuration
+
     // When using TLS with AWS ElasticCache Redis there is an issue related to
     // verifying server identity. This checkServerIdentity workaround is required.
     // See: https://github.com/luin/ioredis/issues/754
-    ...(REDIS_TLS === true
-      ? { tls: { checkServerIdentity: () => undefined }}
-      : {}
-    ),
+    ...enableTls && { tls: { checkServerIdentity: () => undefined }},
 
     ...options,
   };
