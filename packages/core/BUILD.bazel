@@ -20,7 +20,6 @@ _DEPS = [
   "//:node_modules/bullmq",
   "//:node_modules/cloudevents",
   "//:node_modules/cron-validator",
-  "//:node_modules/ioredis",
   "//:node_modules/luxon",
   "//:node_modules/safe-stable-stringify",
   "//:node_modules/ts-pattern",

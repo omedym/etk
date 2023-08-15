@@ -4,7 +4,7 @@ import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { createId } from '@paralleldrive/cuid2';
 import { PostgreSqlContainer, StartedPostgreSqlContainer } from '@testcontainers/postgresql';
-import { DelayedError, Job, Queue } from 'bullmq';
+import { DelayedError, Job, Queue, RedisOptions } from 'bullmq';
 import { DateTime, Duration } from 'luxon';
 import { exec } from 'node:child_process';
 import { promisify } from 'node:util';
@@ -19,6 +19,7 @@ import { TrackedJobEventQueue } from './TrackedJobEventQueue';
 import { TrackedQueueListener } from './TrackedQueueListener';
 import { TrackedQueueProcessor } from './TrackedQueueProcessor';
 import { ILogger } from '../telemetry';
+import { configureRedisConnection } from '../redis.connect';
 
 
 const TestConfig = {
@@ -243,10 +244,17 @@ describe('TrackedProcessor', () => {
     testNum++;
     const QUEUE_NAME = `test_${testNum}`;
     const DELAYED_QUEUE_NAME = `${QUEUE_NAME}_delayed`;
-    const redisConnectionOptions = {
-      host: redis.getHost(),
-      port: redis.getMappedPort(TestConfig.redis.port)
+
+    // Set the env params used to provision Redis connections
+    const env = process.env;
+    process.env = {
+      ...env,
+      REDIS_HOST: redis.getHost(),
+      REDIS_PORT: redis.getMappedPort(TestConfig.redis.port).toString(),
+      REDIS_TLS:  'disable'
     };
+
+    const redisOptions: RedisOptions = configureRedisConnection();
 
     @Processor(QUEUE_NAME)
     class TestTrackedProcessor extends TrackedQueueProcessor<TestJobData> { }
@@ -276,7 +284,7 @@ describe('TrackedProcessor', () => {
         this.logger.info(`Job ${job.id} Processing - Delayed Until ${runAt.toISO()}`);
 
         job.moveToDelayed(runAt.toMillis(), token);
-        throw new DelayedError(`Job ${job.id} delayed until ${runAt.toISO()}`);
+        // throw new DelayedError(`Job ${job.id} delayed until ${runAt.toISO()}`);
       }
     }
 
@@ -289,19 +297,19 @@ describe('TrackedProcessor', () => {
     }
 
     /** The `lastEventId` setting is critical for ensuring the listener captures events that occurred before initialization */
-    @QueueEventsListener(Providers.TrackedJobEventQueue, { lastEventId: '0-0', connection: redisConnectionOptions })
+    @QueueEventsListener(Providers.TrackedJobEventQueue, { lastEventId: '0-0', connection: redisOptions })
     class TrackedJobEventListener extends QueueListener { }
-    @QueueEventsListener(QUEUE_NAME, { lastEventId: '0-0', connection: redisConnectionOptions })
+    @QueueEventsListener(QUEUE_NAME, { lastEventId: '0-0', connection: redisOptions })
     class TestQueueListener extends TestTrackedQueueListener { }
-    @QueueEventsListener(DELAYED_QUEUE_NAME, { lastEventId: '0-0', connection: redisConnectionOptions })
+    @QueueEventsListener(DELAYED_QUEUE_NAME, { lastEventId: '0-0', connection: redisOptions })
     class TestDelayedQueueListener extends TestTrackedQueueListener { }
 
     const moduleRef = await Test.createTestingModule({
       imports: [
-        BullModule.forRoot({ connection: redisConnectionOptions }),
-        BullModule.registerQueue({ name: Providers.TrackedJobEventQueue }),
-        BullModule.registerQueue({ name: QUEUE_NAME }),
-        BullModule.registerQueue({ name: DELAYED_QUEUE_NAME }),
+        BullModule.forRoot({ connection: redisOptions }),
+        BullModule.registerQueueAsync({ name: Providers.TrackedJobEventQueue }),
+        BullModule.registerQueueAsync({ name: QUEUE_NAME }),
+        BullModule.registerQueueAsync({ name: DELAYED_QUEUE_NAME }),
         RepositoryPostgresModule.forRoot({ databaseUrl: DATABASE_URL_POSTGRES, assetBucket: '' }),
       ],
       providers: [
@@ -410,7 +418,7 @@ describe('TrackedProcessor', () => {
 
       const jobId = createId();
       const msg = generateTestMessage();
-      producer.queue.add(msg.type, msg, { jobId: jobId });
+      await producer.queue.add(msg.type, msg, { jobId: jobId });
 
       // await processor.worker.delay(TestConfig.bullMq.delayMs);
       await trackedJobEventProcessor.worker.delay(TestConfig.bullMq.delayMs);
@@ -430,7 +438,7 @@ describe('TrackedProcessor', () => {
       const spies = insertQueueSpies();
 
       const jobId = createId();
-      producer.queue.add(jobId, generateTestMessage({ someText: 'abc', someNum: 123 }), { jobId: jobId, attempts: 5 });
+      await producer.queue.add(jobId, generateTestMessage({ someText: 'abc', someNum: 123 }), { jobId: jobId, attempts: 5 });
 
       await processor.worker.delay(TestConfig.bullMq.delayMs);
       await trackedJobEventProcessor.worker.delay(TestConfig.bullMq.delayMs);
@@ -449,7 +457,7 @@ describe('TrackedProcessor', () => {
       const spies = insertQueueSpies({ queueListener: delayedListener });
 
       const jobId = createId();
-      delayedProducer.queue.add(jobId, generateTestMessage({ someText: 'abc', someNum: 123 }), { jobId: jobId, attempts: 5 });
+      await delayedProducer.queue.add(jobId, generateTestMessage({ someText: 'abc', someNum: 123 }), { jobId: jobId, attempts: 5 });
 
       await delayedProcessor.worker.delay(TestConfig.bullMq.delayMs);
       await trackedJobEventProcessor.worker.delay(TestConfig.bullMq.delayMs * 3);
