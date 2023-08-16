@@ -123,8 +123,8 @@ describe('Exchange', () => {
       async send(message: IMessage) { await this.publishOrSend(message) }
     }
 
-    const message_a = new TestMessageA().build('', '', data);
-    const message_b = new TestMessageB().build('', '', data);
+    const message_a = new TestMessageA().build('', '', data).get();
+    const message_b = new TestMessageB().build('', '', data).get();
 
     const queue: Queue = jest.mocked<Queue>({
       add: jest.fn(),
@@ -132,23 +132,23 @@ describe('Exchange', () => {
 
     it('can check if a message is allowed', () => {
       const sut = new TestExchange(queue, logger);
-      expect(sut.isAllowed(message_a.message)).toBeTruthy();
+      expect(sut.isAllowed(message_a)).toBeTruthy();
     });
 
     it('can check if a message is not allowed', () => {
       const sut = new TestExchange(queue, logger);
-      expect(sut.isAllowed(message_b.message)).toBeFalsy();
+      expect(sut.isAllowed(message_b)).toBeFalsy();
     });
 
     it('publishes or sends an allowed message', async () => {
       const sut = new TestExchange(queue, logger);
-      await sut.send(message_a.message);
+      await sut.send(message_a);
       expect (queue.add).toBeCalled();
     });
 
     it('prevents publishing or sending messages not specified as allowed', async () => {
       const sut = new TestExchange(queue, logger);
-      await expect(sut.send(message_b.message)).rejects.toThrow();
+      await expect(sut.send(message_b)).rejects.toThrow();
     });
   });
 

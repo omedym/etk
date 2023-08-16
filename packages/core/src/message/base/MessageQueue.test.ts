@@ -123,8 +123,8 @@ describe('MessageQueue', () => {
       async send(message: IMessage): Promise<void> { await this.add(message) }
     }
 
-    const message_a = new TestMessageA().build('', '', data);
-    const message_b = new TestMessageB().build('', '', data);
+    const message_a = new TestMessageA().build('', '', data).get();
+    const message_b = new TestMessageB().build('', '', data).get();
 
     const queue: Queue = jest.mocked<Queue>({
       add: jest.fn(),
@@ -132,23 +132,23 @@ describe('MessageQueue', () => {
 
     it('checks if a message is allowed', () => {
       const sut = new TestQueue(queue, logger);
-      expect(sut.isAllowed(message_a.message)).toBeTruthy();
+      expect(sut.isAllowed(message_a)).toBeTruthy();
     });
 
     it('checks if a message is not allowed', () => {
       const sut = new TestQueue(queue, logger);
-      expect(sut.isAllowed(message_b.message)).toBeFalsy();
+      expect(sut.isAllowed(message_b)).toBeFalsy();
     });
 
     it('adds an allowed message', () => {
       const sut = new TestQueue(queue, logger);
-      sut.send(message_a.message);
+      sut.send(message_a);
       expect(queue.add).toBeCalled();
     });
 
     it('prevents adding messages not specified as allowed', async () => {
       const sut = new TestQueue(queue, logger);
-      await expect(sut.send(message_b.message)).rejects.toThrow();
+      await expect(sut.send(message_b)).rejects.toThrow();
     });
   });
 });
