@@ -1,9 +1,8 @@
 import { Queue } from 'bullmq';
 
-import { AbstractMessageQueue } from './MessageQueue';
 import { ILogger } from '../../telemetry';
-import { IMessage, IMessageDefinition, AbstractMessageFactory, IMessageMetadata } from '..';
-import { IMessageQueueDefinition } from './MessageQueue';
+import { IMessage, IMessageDefinition, AbstractMessageFactory, IMessageMetadata, AbstractMessageBuilder } from '..';
+import { IMessageQueueDefinition, AbstractMessageQueue} from './MessageQueue';
 
 
 describe('MessageQueue', () => {
@@ -53,51 +52,103 @@ describe('MessageQueue', () => {
     required: ["data", "type", "aMissingProperty"],
   };
 
-  class TestMessageA extends AbstractMessageFactory<ITestData, IMessageMetadata, ITestMessage> {
-    definition = TestMessageADefinition;
-    schema = TestEventSchema;
-  }
+  describe('Test Message Factory', () => {
+    class TestMessageA extends AbstractMessageFactory<ITestData, IMessageMetadata, ITestMessage> {
+      definition = TestMessageADefinition;
+      schema = TestEventSchema;
+    }
 
-  class TestMessageB extends AbstractMessageFactory<ITestData, IMessageMetadata, ITestMessage> {
-    definition = TestMessageBDefinition;
-    schema = TestEventSchema;
-  }
+    class TestMessageB extends AbstractMessageFactory<ITestData, IMessageMetadata, ITestMessage> {
+      definition = TestMessageBDefinition;
+      schema = TestEventSchema;
+    }
 
-  const TestQueueDefinition: IMessageQueueDefinition = {
-    queueId: 'queueId',
-    bindings: [{ dir: 'in', msg: TestMessageADefinition }],
-  };
+    const TestQueueDefinition: IMessageQueueDefinition = {
+      queueId: 'queueId',
+      bindings: [{ dir: 'in', msg: TestMessageADefinition }],
+    };
 
-  class TestQueue extends AbstractMessageQueue {
-    readonly definition = TestQueueDefinition;
-    async send(message: IMessage): Promise<void> { await this.add(message) }
-  }
+    class TestQueue extends AbstractMessageQueue {
+      readonly definition = TestQueueDefinition;
+      async send(message: IMessage): Promise<void> { await this.add(message) }
+    }
 
-  const message_a = new TestMessageA().build('', '', data);
-  const message_b = new TestMessageB().build('', '', data);
+    const message_a = new TestMessageA().build('', '', data);
+    const message_b = new TestMessageB().build('', '', data);
 
-  const queue: Queue = jest.mocked<Queue>({
-    add: jest.fn(),
-  } as unknown as Queue)
+    const queue: Queue = jest.mocked<Queue>({
+      add: jest.fn(),
+    } as unknown as Queue)
 
-  it('checks if a message is allowed', () => {
-    const sut = new TestQueue(queue, logger);
-    expect(sut.isAllowed(message_a)).toBeTruthy();
+    it('checks if a message is allowed', () => {
+      const sut = new TestQueue(queue, logger);
+      expect(sut.isAllowed(message_a)).toBeTruthy();
+    });
+
+    it('checks if a message is not allowed', () => {
+      const sut = new TestQueue(queue, logger);
+      expect(sut.isAllowed(message_b)).toBeFalsy();
+    });
+
+    it('adds an allowed message', () => {
+      const sut = new TestQueue(queue, logger);
+      sut.send(message_a);
+      expect(queue.add).toBeCalled();
+    });
+
+    it('prevents adding messages not specified as allowed', async () => {
+      const sut = new TestQueue(queue, logger);
+      await expect(sut.send(message_b)).rejects.toThrow();
+    });
   });
 
-  it('checks if a message is not allowed', () => {
-    const sut = new TestQueue(queue, logger);
-    expect(sut.isAllowed(message_b)).toBeFalsy();
-  });
+  describe('Test Message Builder', () => {
+    class TestMessageA extends AbstractMessageBuilder<ITestData, IMessageMetadata, ITestMessage> {
+      definition = TestMessageADefinition;
+      schema = TestEventSchema;
+    }
 
-  it('adds an allowed message', () => {
-    const sut = new TestQueue(queue, logger);
-    sut.send(message_a);
-    expect(queue.add).toBeCalled();
-  });
+    class TestMessageB extends AbstractMessageBuilder<ITestData, IMessageMetadata, ITestMessage> {
+      definition = TestMessageBDefinition;
+      schema = TestEventSchema;
+    }
 
-  it('prevents adding messages not specified as allowed', async () => {
-    const sut = new TestQueue(queue, logger);
-    await expect(sut.send(message_b)).rejects.toThrow();
+    const TestQueueDefinition: IMessageQueueDefinition = {
+      queueId: 'queueId',
+      bindings: [{ dir: 'in', msg: TestMessageADefinition }],
+    };
+
+    class TestQueue extends AbstractMessageQueue {
+      readonly definition = TestQueueDefinition;
+      async send(message: IMessage): Promise<void> { await this.add(message) }
+    }
+
+    const message_a = new TestMessageA().build('', '', data);
+    const message_b = new TestMessageB().build('', '', data);
+
+    const queue: Queue = jest.mocked<Queue>({
+      add: jest.fn(),
+    } as unknown as Queue)
+
+    it('checks if a message is allowed', () => {
+      const sut = new TestQueue(queue, logger);
+      expect(sut.isAllowed(message_a.message)).toBeTruthy();
+    });
+
+    it('checks if a message is not allowed', () => {
+      const sut = new TestQueue(queue, logger);
+      expect(sut.isAllowed(message_b.message)).toBeFalsy();
+    });
+
+    it('adds an allowed message', () => {
+      const sut = new TestQueue(queue, logger);
+      sut.send(message_a.message);
+      expect(queue.add).toBeCalled();
+    });
+
+    it('prevents adding messages not specified as allowed', async () => {
+      const sut = new TestQueue(queue, logger);
+      await expect(sut.send(message_b.message)).rejects.toThrow();
+    });
   });
 });

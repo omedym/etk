@@ -1,9 +1,8 @@
 import { Queue } from 'bullmq';
 
-import { AbstractMessageExchange } from './MessageExchange';
 import { ILogger } from '../../telemetry';
-import { IMessage, IMessageDefinition, AbstractMessageFactory, IMessageMetadata } from '..';
-import { IMessageExchangeDefinition } from './MessageExchange';
+import { IMessage, IMessageDefinition, AbstractMessageFactory, IMessageMetadata, AbstractMessageBuilder } from '..';
+import { IMessageExchangeDefinition, AbstractMessageExchange } from './MessageExchange';
 
 
 describe('Exchange', () => {
@@ -53,51 +52,104 @@ describe('Exchange', () => {
     required: ['data', 'type', 'aMissingProperty'],
   };
 
-  class TestMessageA extends AbstractMessageFactory<ITestData, IMessageMetadata, ITestMessage> {
-    definition = TestMessageADefinition;
-    schema = TestEventSchema;
-  }
+  describe('Test Message Factory', () => {
+    class TestMessageA extends AbstractMessageFactory<ITestData, IMessageMetadata, ITestMessage> {
+      definition = TestMessageADefinition;
+      schema = TestEventSchema;
+    }
 
-  class TestMessageB extends AbstractMessageFactory<ITestData, IMessageMetadata, ITestMessage> {
-    definition = TestMessageBDefinition;
-    schema = TestEventSchema;
-  }
+    class TestMessageB extends AbstractMessageFactory<ITestData, IMessageMetadata, ITestMessage> {
+      definition = TestMessageBDefinition;
+      schema = TestEventSchema;
+    }
 
-  const TestExchangeDefinition: IMessageExchangeDefinition = {
-    queueId: 'queueId',
-    bindings: [{ dir: 'in', msg: TestMessageADefinition }],
-  };
+    const TestExchangeDefinition: IMessageExchangeDefinition = {
+      queueId: 'queueId',
+      bindings: [{ dir: 'in', msg: TestMessageADefinition }],
+    };
 
-  class TestExchange extends AbstractMessageExchange {
-    readonly definition = TestExchangeDefinition;
-    async send(message: IMessage) { await this.publishOrSend(message) }
-  }
+    class TestExchange extends AbstractMessageExchange {
+      readonly definition = TestExchangeDefinition;
+      async send(message: IMessage) { await this.publishOrSend(message) }
+    }
 
-  const message_a = new TestMessageA().build('', '', data);
-  const message_b = new TestMessageB().build('', '', data);
+    const message_a = new TestMessageA().build('', '', data);
+    const message_b = new TestMessageB().build('', '', data);
 
-  const queue: Queue = jest.mocked<Queue>({
-    add: jest.fn(),
-  } as unknown as Queue)
+    const queue: Queue = jest.mocked<Queue>({
+      add: jest.fn(),
+    } as unknown as Queue)
 
-  it('can check if a message is allowed', () => {
-    const sut = new TestExchange(queue, logger);
-    expect(sut.isAllowed(message_a)).toBeTruthy();
+    it('can check if a message is allowed', () => {
+      const sut = new TestExchange(queue, logger);
+      expect(sut.isAllowed(message_a)).toBeTruthy();
+    });
+
+    it('can check if a message is not allowed', () => {
+      const sut = new TestExchange(queue, logger);
+      expect(sut.isAllowed(message_b)).toBeFalsy();
+    });
+
+    it('publishes or sends an allowed message', async () => {
+      const sut = new TestExchange(queue, logger);
+      await sut.send(message_a);
+      expect (queue.add).toBeCalled();
+    });
+
+    it('prevents publishing or sending messages not specified as allowed', async () => {
+      const sut = new TestExchange(queue, logger);
+      await expect(sut.send(message_b)).rejects.toThrow();
+    });
   });
 
-  it('can check if a message is not allowed', () => {
-    const sut = new TestExchange(queue, logger);
-    expect(sut.isAllowed(message_b)).toBeFalsy();
+  describe('Test Message Builder', () => {
+    class TestMessageA extends AbstractMessageBuilder<ITestData, IMessageMetadata, ITestMessage> {
+      definition = TestMessageADefinition;
+      schema = TestEventSchema;
+    }
+
+    class TestMessageB extends AbstractMessageBuilder<ITestData, IMessageMetadata, ITestMessage> {
+      definition = TestMessageBDefinition;
+      schema = TestEventSchema;
+    }
+
+    const TestExchangeDefinition: IMessageExchangeDefinition = {
+      queueId: 'queueId',
+      bindings: [{ dir: 'in', msg: TestMessageADefinition }],
+    };
+
+    class TestExchange extends AbstractMessageExchange {
+      readonly definition = TestExchangeDefinition;
+      async send(message: IMessage) { await this.publishOrSend(message) }
+    }
+
+    const message_a = new TestMessageA().build('', '', data);
+    const message_b = new TestMessageB().build('', '', data);
+
+    const queue: Queue = jest.mocked<Queue>({
+      add: jest.fn(),
+    } as unknown as Queue)
+
+    it('can check if a message is allowed', () => {
+      const sut = new TestExchange(queue, logger);
+      expect(sut.isAllowed(message_a.message)).toBeTruthy();
+    });
+
+    it('can check if a message is not allowed', () => {
+      const sut = new TestExchange(queue, logger);
+      expect(sut.isAllowed(message_b.message)).toBeFalsy();
+    });
+
+    it('publishes or sends an allowed message', async () => {
+      const sut = new TestExchange(queue, logger);
+      await sut.send(message_a.message);
+      expect (queue.add).toBeCalled();
+    });
+
+    it('prevents publishing or sending messages not specified as allowed', async () => {
+      const sut = new TestExchange(queue, logger);
+      await expect(sut.send(message_b.message)).rejects.toThrow();
+    });
   });
 
-  it('publishes or sends an allowed message', async () => {
-    const sut = new TestExchange(queue, logger);
-    await sut.send(message_a);
-    expect (queue.add).toBeCalled();
-  });
-
-  it('prevents publishing or sending messages not specified as allowed', async () => {
-    const sut = new TestExchange(queue, logger);
-    await expect(sut.send(message_b)).rejects.toThrow();
-  });
 });

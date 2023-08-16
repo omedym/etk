@@ -1,5 +1,6 @@
 export * from './Message';
 export * from './MessageBinding';
+export * from './MessageBuilder';
 export * from './MessageConsumer';
 export * from './MessageContext';
 export * from './MessageData';
