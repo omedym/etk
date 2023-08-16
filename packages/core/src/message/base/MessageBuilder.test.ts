@@ -32,9 +32,9 @@ describe('MessageBuilder', () => {
   }
 
   it('can seal an instance', () => {
-    const event = new TestEvent().build('', '', data).seal().get();
+    const event = new TestEvent().build('', '', data).seal();
 
-    expect(event.idempotencykey).toBeTruthy();
+    expect(event.message.idempotencykey).toBeTruthy();
   });
 
   it('can seal and verify instance', () => {
@@ -63,9 +63,9 @@ describe('MessageBuilder', () => {
     const event1 = new TestEvent().build('', '', data);
     const event2 = new TestEvent().build('', '', data);
 
-    event2.setCorrelation(event1.get());
-    expect(event2.get().metadata.correlationId).toEqual(event1.get().id);
-    expect(event2.get().metadata.traceId).toEqual(event1.get().id);
+    event2.setCorrelation(event1.message);
+    expect(event2.message.metadata.correlationId).toEqual(event1.message.id);
+    expect(event2.message.metadata.traceId).toEqual(event1.message.id);
   });
 
   it(`can set correlation (traceId)`, () => {
@@ -73,12 +73,12 @@ describe('MessageBuilder', () => {
     const event2 = new TestEvent().build('', '', data);
     const event3 = new TestEvent().build('', '', data);
 
-    event2.setCorrelation(event1.get());
-    event3.setCorrelation(event2.get());
-    expect(event2.get().metadata.correlationId).toEqual(event1.get().id);
-    expect(event2.get().metadata.traceId).toEqual(event1.get().id);
+    event2.setCorrelation(event1.message);
+    event3.setCorrelation(event2.message);
+    expect(event2.message.metadata.correlationId).toEqual(event1.message.id);
+    expect(event2.message.metadata.traceId).toEqual(event1.message.id);
 
-    expect(event3.get().metadata.correlationId).toEqual(event2.get().id);
-    expect(event3.get().metadata.traceId).toEqual(event1.get().id);
+    expect(event3.message.metadata.correlationId).toEqual(event2.message.id);
+    expect(event3.message.metadata.traceId).toEqual(event1.message.id);
   });
 });

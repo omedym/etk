@@ -1,7 +1,7 @@
 import { Queue } from 'bullmq';
 
 import { AbstractEventGateway, IEventGatewayDefinition } from './EventGateway';
-import { AbstractMessageBuilder } from './base';
+import { AbstractMessageBuilder, AbstractMessageFactory } from './base';
 import { IEvent, IEventDefinition, IEventMetadata } from './Event';
 import { ILogger } from '../telemetry';
 
@@ -53,51 +53,103 @@ describe('EventGateway', () => {
     required: ['data', 'type', 'aMissingProperty'],
   };
 
-  class TestEventA extends AbstractMessageBuilder<ITestData, IEventMetadata, ITestEvent> {
-    definition = TestEventADefinition;
-    schema = TestEventSchema;
-  }
+  describe('Test Message Factory', () => {
+    class TestEventA extends AbstractMessageFactory<ITestData, IEventMetadata, ITestEvent> {
+      definition = TestEventADefinition;
+      schema = TestEventSchema;
+    }
 
-  class TestEventB extends AbstractMessageBuilder<ITestData, IEventMetadata, ITestEvent> {
-    definition = TestEventBDefinition;
-    schema = TestEventSchema;
-  }
+    class TestEventB extends AbstractMessageFactory<ITestData, IEventMetadata, ITestEvent> {
+      definition = TestEventBDefinition;
+      schema = TestEventSchema;
+    }
 
-  const TestGatewayDefinition: IEventGatewayDefinition = {
-    gatewayType: 'event',
-    bindings: [{ dir: 'in', msg: TestEventADefinition }],
-    queueId: 'queueId',
-  };
+    const TestGatewayDefinition: IEventGatewayDefinition = {
+      gatewayType: 'event',
+      bindings: [{ dir: 'in', msg: TestEventADefinition }],
+      queueId: 'queueId',
+    };
 
-  class TestEventGateway extends AbstractEventGateway{
-    readonly definition = TestGatewayDefinition;
-  }
+    class TestEventGateway extends AbstractEventGateway{
+      readonly definition = TestGatewayDefinition;
+    }
 
-  const event_a = new TestEventA().build('', '', data).get();
-  const event_b = new TestEventB().build('', '', data).get();
+    const event_a = new TestEventA().build('', '', data);
+    const event_b = new TestEventB().build('', '', data);
 
-  const queue: Queue = jest.mocked<Queue>({
-    add: jest.fn(),
-  } as unknown as Queue)
+    const queue: Queue = jest.mocked<Queue>({
+      add: jest.fn(),
+    } as unknown as Queue)
 
-  it('can check if a message is allowed', () => {
-    const sut = new TestEventGateway(queue, logger);
-    expect(sut.isAllowed(event_a)).toBeTruthy();
+    it('can check if a message is allowed', () => {
+      const sut = new TestEventGateway(queue, logger);
+      expect(sut.isAllowed(event_a)).toBeTruthy();
+    });
+
+    it('can check if a message is not allowed', () => {
+      const sut = new TestEventGateway(queue, logger);
+      expect(sut.isAllowed(event_b)).toBeFalsy();
+    });
+
+    it('publishes or sends an allowed message', async () => {
+      const sut = new TestEventGateway(queue, logger);
+      await sut.publish(event_a);
+      expect(queue.add).toBeCalled();
+    });
+
+    it('prevents publishing or sending messages not specified as allowed', async () => {
+      const sut = new TestEventGateway(queue, logger);
+      await expect(sut.publish(event_b)).rejects.toThrow();
+    });
   });
 
-  it('can check if a message is not allowed', () => {
-    const sut = new TestEventGateway(queue, logger);
-    expect(sut.isAllowed(event_b)).toBeFalsy();
-  });
+  describe('Test Message Builder', () => {
+    class TestEventA extends AbstractMessageBuilder<ITestData, IEventMetadata, ITestEvent> {
+      definition = TestEventADefinition;
+      schema = TestEventSchema;
+    }
 
-  it('publishes or sends an allowed message', async () => {
-    const sut = new TestEventGateway(queue, logger);
-    await sut.publish(event_a);
-    expect(queue.add).toBeCalled();
-  });
+    class TestEventB extends AbstractMessageBuilder<ITestData, IEventMetadata, ITestEvent> {
+      definition = TestEventBDefinition;
+      schema = TestEventSchema;
+    }
 
-  it('prevents publishing or sending messages not specified as allowed', async () => {
-    const sut = new TestEventGateway(queue, logger);
-    await expect(sut.publish(event_b)).rejects.toThrow();
+    const TestGatewayDefinition: IEventGatewayDefinition = {
+      gatewayType: 'event',
+      bindings: [{ dir: 'in', msg: TestEventADefinition }],
+      queueId: 'queueId',
+    };
+
+    class TestEventGateway extends AbstractEventGateway{
+      readonly definition = TestGatewayDefinition;
+    }
+
+    const event_a = new TestEventA().build('', '', data);
+    const event_b = new TestEventB().build('', '', data);
+
+    const queue: Queue = jest.mocked<Queue>({
+      add: jest.fn(),
+    } as unknown as Queue)
+
+    it('can check if a message is allowed', () => {
+      const sut = new TestEventGateway(queue, logger);
+      expect(sut.isAllowed(event_a.message)).toBeTruthy();
+    });
+
+    it('can check if a message is not allowed', () => {
+      const sut = new TestEventGateway(queue, logger);
+      expect(sut.isAllowed(event_b.message)).toBeFalsy();
+    });
+
+    it('publishes or sends an allowed message', async () => {
+      const sut = new TestEventGateway(queue, logger);
+      await sut.publish(event_a.message);
+      expect(queue.add).toBeCalled();
+    });
+
+    it('prevents publishing or sending messages not specified as allowed', async () => {
+      const sut = new TestEventGateway(queue, logger);
+      await expect(sut.publish(event_b)).rejects.toThrow();
+    });
   });
 });

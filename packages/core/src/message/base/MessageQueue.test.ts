@@ -1,9 +1,9 @@
 import { Queue } from 'bullmq';
 
 import { ILogger } from '../../telemetry';
-import { IMessage, IMessageDefinition, IMessageMetadata, AbstractMessageBuilder } from '..';
-import { IMessageQueueDefinition, AbstractMessageQueue} from './MessageQueue';
-
+import { IMessage, IMessageDefinition, AbstractMessageFactory, IMessageMetadata } from '..';
+import { AbstractMessageQueue } from './MessageQueue';
+import { IMessageQueueDefinition } from './MessageQueue';
 
 describe('MessageQueue', () => {
   let logEntries: { msg: string; data: any }[] = [];
@@ -52,12 +52,12 @@ describe('MessageQueue', () => {
     required: ["data", "type", "aMissingProperty"],
   };
 
-  class TestMessageA extends AbstractMessageBuilder<ITestData, IMessageMetadata, ITestMessage> {
+  class TestMessageA extends AbstractMessageFactory<ITestData, IMessageMetadata, ITestMessage> {
     definition = TestMessageADefinition;
     schema = TestEventSchema;
   }
 
-  class TestMessageB extends AbstractMessageBuilder<ITestData, IMessageMetadata, ITestMessage> {
+  class TestMessageB extends AbstractMessageFactory<ITestData, IMessageMetadata, ITestMessage> {
     definition = TestMessageBDefinition;
     schema = TestEventSchema;
   }
@@ -72,8 +72,8 @@ describe('MessageQueue', () => {
     async send(message: IMessage): Promise<void> { await this.add(message) }
   }
 
-  const message_a = new TestMessageA().build('', '', data).get();
-  const message_b = new TestMessageB().build('', '', data).get();
+  const message_a = new TestMessageA().build('', '', data);
+  const message_b = new TestMessageB().build('', '', data);
 
   const queue: Queue = jest.mocked<Queue>({
     add: jest.fn(),
