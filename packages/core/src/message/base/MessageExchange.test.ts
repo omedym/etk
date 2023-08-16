@@ -1,9 +1,9 @@
 import { Queue } from 'bullmq';
 
 import { ILogger } from '../../telemetry';
-import { IMessage, IMessageDefinition, IMessageMetadata, AbstractMessageBuilder } from '..';
-import { IMessageExchangeDefinition, AbstractMessageExchange } from './MessageExchange';
-
+import { IMessage, IMessageDefinition, AbstractMessageFactory, IMessageMetadata } from '..';
+import { AbstractMessageExchange } from './MessageExchange';
+import { IMessageExchangeDefinition } from './MessageExchange';
 
 describe('Exchange', () => {
   let logEntries: { msg: string; data: any }[] = [];
@@ -43,21 +43,21 @@ describe('Exchange', () => {
   const data: ITestData = { };
 
   const TestEventSchema = {
-    type: 'object',
+    type: "object",
     properties: {
-      type: { type: 'string' },
-      data: { type: 'object' },
-      aMissingProperty: { type: 'string' },
+      type: { type: "string" },
+      data: { type: "object" },
+      aMissingProperty: { type: "string" },
      },
-    required: ['data', 'type', 'aMissingProperty'],
+    required: ["data", "type", "aMissingProperty"],
   };
 
-  class TestMessageA extends AbstractMessageBuilder<ITestData, IMessageMetadata, ITestMessage> {
+  class TestMessageA extends AbstractMessageFactory<ITestData, IMessageMetadata, ITestMessage> {
     definition = TestMessageADefinition;
     schema = TestEventSchema;
   }
 
-  class TestMessageB extends AbstractMessageBuilder<ITestData, IMessageMetadata, ITestMessage> {
+  class TestMessageB extends AbstractMessageFactory<ITestData, IMessageMetadata, ITestMessage> {
     definition = TestMessageBDefinition;
     schema = TestEventSchema;
   }
@@ -72,8 +72,8 @@ describe('Exchange', () => {
     async send(message: IMessage) { await this.publishOrSend(message) }
   }
 
-  const message_a = new TestMessageA().build('', '', data).get();
-  const message_b = new TestMessageB().build('', '', data).get();
+  const message_a = new TestMessageA().build('', '', data);
+  const message_b = new TestMessageB().build('', '', data);
 
   const queue: Queue = jest.mocked<Queue>({
     add: jest.fn(),
@@ -99,5 +99,4 @@ describe('Exchange', () => {
     const sut = new TestExchange(queue, logger);
     await expect(sut.send(message_b)).rejects.toThrow();
   });
-
 });
