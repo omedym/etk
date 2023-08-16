@@ -21,7 +21,7 @@
  */
 export interface IMessageOriginMetadata {
   /** The correlationId of a message always references the identifier of the message it originates from (i.e. the parent message). */
-  corelationId?: string;
+  correlationId?: string;
   /** The traceId on the other hand references to the message identifier which started the chain of messages (i.e. the root message). */
   traceId?: string;
 }
