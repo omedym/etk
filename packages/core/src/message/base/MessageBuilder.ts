@@ -9,8 +9,6 @@ import crypto from 'crypto';
 import { DateTime } from 'luxon';
 import stableStringify from 'safe-stable-stringify';
 
-import { decryptMessage, encryptMessage } from '@omedym/nestjs-dmq-repository-postgres';
-
 import { DefaultMessageMetadata } from './MessageMetadata';
 
 // type ExtractMessageData<M> = M extends IMessage<infer TData> ? TData : IMessageData;
@@ -23,10 +21,14 @@ export abstract class AbstractMessageBuilder<
 > {
   abstract definition: IMessageDefinition;
   abstract schema: object;
-  private message: TMessage;
+  private messageRaw: TMessage;
 
-  get(): TMessage {
-    return this.message;
+  public get() {
+    return this.messageRaw;
+  }
+
+  public get message() {
+    return this.messageRaw;
   }
 
   build(
@@ -39,7 +41,7 @@ export abstract class AbstractMessageBuilder<
     // When constructing the message we inject the provided tenantId across
     // all multiple concerns, specifically the event attribute `tenantid`, and
     // both a data payload and context payload attribute for `tenantId`.
-    this.message = {
+    this.messageRaw = {
       type: this.definition.cloudEvent.type,
       time: DateTime.now().toISO(),
       id: createId(),
@@ -60,20 +62,20 @@ export abstract class AbstractMessageBuilder<
   }
 
   seal(): AbstractMessageBuilder<TData, TMetadata, TMessage> {
-    if (this.message.idempotencykey) return this;
+    if (this.messageRaw.idempotencykey) return this;
 
     const verificationKey = crypto
       .createHash('md5')
       .update(stableStringify(this.message))
       .digest('hex');
 
-    this.message.idempotencykey = verificationKey;
+    this.messageRaw.idempotencykey = verificationKey;
 
     return this;
   }
 
-  verify(): boolean {
-    const { idempotencykey, ...unsealedMessage } = this.message;
+  verify(message: TMessage): boolean {
+    const { idempotencykey, ...unsealedMessage } = message;
 
     const verifiedKey = crypto
       .createHash('md5')
@@ -83,11 +85,14 @@ export abstract class AbstractMessageBuilder<
     return verifiedKey == idempotencykey;
   }
 
-  validate(): { isValid: boolean; errors: Ajv.ErrorObject[] } {
+  validate(
+    message: TMessage,
+    throwOnError: boolean = false,
+  ): { isValid: boolean; errors: Ajv.ErrorObject[] } {
     const ajv = new Ajv();
     const validate = ajv.compile(this.schema);
 
-    const valid = validate(this.message);
+    const valid = validate(message);
 
     if (valid) return { isValid: true, errors: [] };
 
@@ -95,8 +100,8 @@ export abstract class AbstractMessageBuilder<
   }
 
   setCorrelation(originMessage: TMessage): AbstractMessageBuilder<TData, TMetadata, TMessage> {
-    this.message.metadata = {
-      ...this.message.metadata,
+    this.messageRaw.metadata = {
+      ...this.messageRaw.metadata,
       correlationId: originMessage.id,
       traceId: originMessage.metadata.traceId || originMessage.id,
     };

@@ -39,21 +39,21 @@ describe('MessageBuilder', () => {
 
   it('can seal and verify instance', () => {
     const event = new TestEvent().build('', '', data).seal();
-    const isVerified = event.verify();
+    const isVerified = event.verify(event.message);
 
     expect(isVerified).toBeTruthy();
   });
 
   it('can validate an instance', () => {
     const event = new TestEvent().build('', '', data);
-    const check = event.validate();
+    const check = event.validate(event.message);
 
     expect(check).toBeTruthy();
   });
 
   it(`can report an invalid instance`, () => {
     const event = new TestEvent().build('', '', data);
-    const check = event.validate();
+    const check = event.validate(event.message);
 
     expect(check.isValid).toBeFalsy();
     expect(check.errors).toHaveLength(1);
