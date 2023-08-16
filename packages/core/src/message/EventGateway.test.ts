@@ -44,13 +44,13 @@ describe('EventGateway', () => {
   const data: ITestData = { };
 
   const TestEventSchema = {
-    type: 'object',
+    type: "object",
     properties: {
-      type: { type: 'string' },
-      data: { type: 'object' },
-      aMissingProperty: { type: 'string' },
+      type: { type: "string" },
+      data: { type: "object" },
+      aMissingProperty: { type: "string" },
      },
-    required: ['data', 'type', 'aMissingProperty'],
+    required: ["data", "type", "aMissingProperty"],
   };
 
   describe('Test Message Factory', () => {
@@ -124,8 +124,8 @@ describe('EventGateway', () => {
       readonly definition = TestGatewayDefinition;
     }
 
-    const event_a = new TestEventA().build('', '', data);
-    const event_b = new TestEventB().build('', '', data);
+    const event_a = new TestEventA().build('', '', data).get();
+    const event_b = new TestEventB().build('', '', data).get();
 
     const queue: Queue = jest.mocked<Queue>({
       add: jest.fn(),
@@ -133,17 +133,17 @@ describe('EventGateway', () => {
 
     it('can check if a message is allowed', () => {
       const sut = new TestEventGateway(queue, logger);
-      expect(sut.isAllowed(event_a.message)).toBeTruthy();
+      expect(sut.isAllowed(event_a)).toBeTruthy();
     });
 
     it('can check if a message is not allowed', () => {
       const sut = new TestEventGateway(queue, logger);
-      expect(sut.isAllowed(event_b.message)).toBeFalsy();
+      expect(sut.isAllowed(event_b)).toBeFalsy();
     });
 
     it('publishes or sends an allowed message', async () => {
       const sut = new TestEventGateway(queue, logger);
-      await sut.publish(event_a.message);
+      await sut.publish(event_a);
       expect(queue.add).toBeCalled();
     });
 
