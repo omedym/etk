@@ -122,8 +122,8 @@ describe('Consumer', () => {
       readonly definition = TestConsumerDefinition;
     }
 
-    const message_a = new TestMessageA().build('', '', data);
-    const message_b = new TestMessageB().build('', '', data);
+    const message_a = new TestMessageA().build('', '', data).get();
+    const message_b = new TestMessageB().build('', '', data).get();
 
     const queue: Queue = jest.mocked<Queue>({
       add: jest.fn(),
@@ -131,23 +131,23 @@ describe('Consumer', () => {
 
     it('checks if a message is allowed', () => {
       const sut = new TestConsumer(queue, logger);
-      expect(sut.isAllowed(message_a.message)).toBeTruthy();
+      expect(sut.isAllowed(message_a)).toBeTruthy();
     });
 
     it('checks if a message is not allowed', () => {
       const sut = new TestConsumer(queue, logger);
-      expect(sut.isAllowed(message_b.message)).toBeFalsy();
+      expect(sut.isAllowed(message_b)).toBeFalsy();
     });
 
     it('sends an allowed message', async () => {
       const sut = new TestConsumer(queue, logger);
-      await sut.send(message_a.message);
+      await sut.send(message_a);
       expect(queue.add).toBeCalled();
     });
 
     it('prevents sending messages not specified as allowed', async () => {
       const sut = new TestConsumer(queue, logger);
-      await expect(sut.send(message_b.message)).rejects.toThrow();
+      await expect(sut.send(message_b)).rejects.toThrow();
     });
   });
 });
