@@ -64,7 +64,7 @@ describe('MessageBuilder', () => {
     const event1 = new TestEvent().build('', '', data);
     const event2 = new TestEvent().build('', '', data);
 
-    event2.setCorrelation(event1.get());
+    event2.correlateWith(event1.get());
     expect(event2.get().metadata.correlationId).toEqual(event1.get().id);
     expect(event2.get().metadata.traceId).toEqual(event1.get().id);
   });
@@ -74,8 +74,8 @@ describe('MessageBuilder', () => {
     const event2 = new TestEvent().build('', '', data);
     const event3 = new TestEvent().build('', '', data);
 
-    event2.setCorrelation(event1.get());
-    event3.setCorrelation(event2.get());
+    event2.correlateWith(event1.get());
+    event3.correlateWith(event2.get());
     expect(event2.get().metadata.correlationId).toEqual(event1.get().id);
     expect(event2.get().metadata.traceId).toEqual(event1.get().id);
 
