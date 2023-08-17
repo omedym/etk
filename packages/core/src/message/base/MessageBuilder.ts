@@ -23,6 +23,7 @@ export abstract class AbstractMessageBuilder<
   abstract definition: IMessageDefinition;
   abstract schema: object;
   private message: TMessage;
+  private metadata?: Partial<TMetadata>;
 
   get(): TMessage {
     return this.message;
@@ -93,12 +94,16 @@ export abstract class AbstractMessageBuilder<
     return { isValid: false, errors: validate.errors ?? [] };
   }
 
-  correlateWith(originMessage: TMessage): AbstractMessageBuilder<TData, TMetadata, TMessage> {
-    this.message.metadata = {
-      ...this.message.metadata,
+  correlateWith(originMessage: IMessage): this {
+    const correlationMetadata = {
+
       correlationId: originMessage.id,
-      traceId: originMessage.metadata.traceId || originMessage.id,
+      traceId: originMessage.metadata?.traceId || originMessage.id,
     };
+
+    this.metadata = this.metadata
+      ? { ...this.metadata, ...correlationMetadata }
+      : { ...correlationMetadata} as Partial<TMetadata>;
 
     return this;
   }
