@@ -93,7 +93,7 @@ export abstract class AbstractMessageBuilder<
     return { isValid: false, errors: validate.errors ?? [] };
   }
 
-  setCorrelation(originMessage: TMessage): AbstractMessageBuilder<TData, TMetadata, TMessage> {
+  correlateWith(originMessage: TMessage): AbstractMessageBuilder<TData, TMetadata, TMessage> {
     this.message.metadata = {
       ...this.message.metadata,
       correlationId: originMessage.id,
