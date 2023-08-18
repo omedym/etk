@@ -71,7 +71,11 @@ export interface IMessageV1<
    */
   specversion: string;
 
-  tenantid: string;
+  /**
+   * @minLength 6
+   * @maxLength 12
+   */
+  tenantid: 'SYSTEM' | string;
 
   vaultkeyid?: string;
 }
