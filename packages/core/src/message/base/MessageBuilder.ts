@@ -1,5 +1,6 @@
 import type { IMessage } from './Message';
-import type { IMessageData } from './MessageData';
+import type { IMessageContext } from './MessageContext';
+import type { IMessageData, IUnknownMessageData } from './MessageData';
 import type { IMessageDefinition } from './MessageDefinition';
 import type { IMessageMetadata } from './MessageMetadata';
 
@@ -8,6 +9,8 @@ import Ajv from 'ajv';
 import crypto from 'crypto';
 import { DateTime } from 'luxon';
 import stableStringify from 'safe-stable-stringify';
+
+import { decryptMessage, encryptMessage } from '@omedym/nestjs-dmq-repository-postgres';
 
 import { DefaultMessageMetadata } from './MessageMetadata';
 
@@ -22,58 +25,134 @@ export abstract class AbstractMessageBuilder<
 > {
   abstract definition: IMessageDefinition;
   abstract schema: object;
-  private message: TMessage;
-  private metadata?: Partial<TMetadata>;
 
-  get(): TMessage {
-    return this.message;
-  }
+  private context?: IMessageContext;
+  private data?: TData;
+  private metadata?: Partial<TMetadata>;
+  private source?: string;
+  private tenantId?: string;
+
+  private vaultKeyId?: string;
+  private secretKey?: string;
+
+  // TODO: buildAndEncrypt() ?
+  // TODO: sendOrPublish() ?
+  // TODO: strong abstract message with embedded builder factory ??
 
   build(
-    tenantId: string,
-    source: string,
-    data: TData,
-    metadata?: TMetadata,
-  ): AbstractMessageBuilder<TData, TMetadata, TMessage> {
+    opts?: {
+      encrypt?: boolean;
+      validate?: boolean;
+      seal?: boolean;
+      throwOnError?: boolean,
+    },
+  ): TMessage {
+
+    const encrypt = opts?.encrypt ?? true;
+    const validate = opts?.validate ?? true;
+    const seal = opts?.seal ?? true;
+    const throwOnError = opts?.throwOnError ?? false;
+
+    // TODO: Add checks for valid attributes like tenantId before we build message
 
     // When constructing the message we inject the provided tenantId across
     // all multiple concerns, specifically the event attribute `tenantid`, and
     // both a data payload and context payload attribute for `tenantId`.
-    this.message = {
-      type: this.definition.cloudEvent.type,
-      time: DateTime.now().toISO(),
+    const message: TMessage = {
       id: createId(),
-      data: {
-        ...data,
-        tenantId: tenantId,
-      },
-      metadata: metadata ? metadata : DefaultMessageMetadata,
+      time: DateTime.now().toISO(),
+      type: this.definition.cloudEvent.type,
+
       specversion: '1.0',
-      tenantid: tenantId,
-      source: source,
+      source: this.source,
+      tenantid: this.tenantId,
+
       context: {
-        tenantId: tenantId,
+        ...this.context,
+        tenantId: this.tenantId,
       },
+      data: {
+        ...this.data,
+        tenantId: this.tenantId,
+      },
+      metadata: this.metadata ?? DefaultMessageMetadata,
     } as unknown as TMessage;
+
+    if (validate)
+      this.validate(message, { throwOnError });
+
+    if (!this.definition.encryption || !encrypt)
+      return seal ? this.seal(message) : message;
+
+    if (!this.vaultKeyId || !this.secretKey)
+      throw new Error (`Message encryption required: ${this.definition.cloudEvent.type}`);
+
+    const encrypted = this.encrypt(message, this.vaultKeyId, this.secretKey);
+
+    return seal ? this.seal(encrypted) : encrypted;
+  }
+
+  with(
+    tenantId: string,
+    source: string,
+    data: TData,
+  ): this {
+    this.tenantId = tenantId;
+    this.source = source;
+    this.data = data;
 
     return this;
   }
 
-  seal(): AbstractMessageBuilder<TData, TMetadata, TMessage> {
-    if (this.message.idempotencykey) return this;
+  withContext(context: IMessageContext): this {
+    this.context = this.context
+      ? { ...this.context, ...context }
+      : { ...context} satisfies IMessageContext
+
+    return this;
+  }
+
+  withEncryption(
+    vaultKeyId: string,
+    secretKey: string
+  ): this {
+
+    if (!this.definition.encryption)
+      throw new Error (`Message encryption not supported: ${this.definition.cloudEvent.type}`);
+
+    this.vaultKeyId = vaultKeyId;
+    this.secretKey = secretKey;
+
+    return this;
+  }
+
+  withMetadata(metadata: TMetadata): this {
+    this.metadata = this.metadata
+      ? { ...this.metadata, ...metadata }
+      : { ...metadata} satisfies TMetadata;
+
+    return this;
+  }
+
+  seal(message: TMessage): TMessage {
+    if (message.idempotencykey)
+      return message;
 
     const verificationKey = crypto
       .createHash('md5')
-      .update(stableStringify(this.message))
+      .update(stableStringify(message))
       .digest('hex');
 
-    this.message.idempotencykey = verificationKey;
+      const sealedMessage = {
+        ...message,
+        idempotencykey: verificationKey,
+      }
 
-    return this;
+    return sealedMessage;
   }
 
-  verify(): boolean {
-    const { idempotencykey, ...unsealedMessage } = this.message;
+  verify(message: TMessage): boolean {
+    const { idempotencykey, ...unsealedMessage } = message;
 
     const verifiedKey = crypto
       .createHash('md5')
@@ -83,15 +162,25 @@ export abstract class AbstractMessageBuilder<
     return verifiedKey == idempotencykey;
   }
 
-  validate(): { isValid: boolean; errors: Ajv.ErrorObject[] } {
+  validate(
+    message: TMessage,
+    opts: { throwOnError: boolean } = { throwOnError: false }
+  ): { isValid: true } | { isValid: false, errors: Ajv.ErrorObject[]} {
     const ajv = new Ajv();
-    const validate = ajv.compile(this.schema);
+    const validate = ajv.compile(this.schema)
 
-    const valid = validate(this.message);
+    const valid = validate(message);
 
-    if (valid) return { isValid: true, errors: [] };
+    if (valid)
+      return { isValid: true };
 
-    return { isValid: false, errors: validate.errors ?? [] };
+    if (opts.throwOnError) {
+      const error = validate.errors?.shift();
+      const errorMsg = `${error?.schemaPath} ${error?.message}`;
+      throw new Error(`Message validation failed: ${errorMsg}`, { cause: validate.errors });
+    }
+
+    return { isValid: false, errors: validate.errors ?? []};
   }
 
   correlateWith(originMessage: IMessage): this {
@@ -103,8 +192,98 @@ export abstract class AbstractMessageBuilder<
 
     this.metadata = this.metadata
       ? { ...this.metadata, ...correlationMetadata }
-      : { ...correlationMetadata} as Partial<TMetadata>;
+      : { ...correlationMetadata } as Partial<TMetadata>;
 
     return this;
+  }
+
+  encrypt(
+    message: TMessage,
+    vaultKeyId: string,
+    secretKey: string,
+  ): TMessage {
+    if (message.vaultkeyid) return message;
+
+    if (!this.definition.encryption) {
+      throw new Error(`Message encryption schema missing: ${this.definition.cloudEvent.type}`);
+    }
+
+    const encryptedMessage: TMessage = {
+      ...message,
+      vaultkeyid: vaultKeyId,
+    }
+    const data: IUnknownMessageData = encryptedMessage.data;
+
+    if (this.definition.encryption.encryptMetadata) {
+      const valueToEncrypt: string = stableStringify(data);
+      const encryptedData = encryptMessage({ message: valueToEncrypt, key: secretKey });
+      (encryptedMessage.data as any) = encryptedData.message;
+    } else {
+
+      for (let key in this.definition.encryption) {
+        if (!Object.hasOwn(this.definition.encryption, key)) {
+          continue;
+        }
+
+        let valueToEncrypt: unknown = data[key];
+
+        if (!valueToEncrypt) {
+          continue;
+        }
+
+        if (this.definition.encryption[key].type !== 'string') {
+          valueToEncrypt = stableStringify(valueToEncrypt);
+        }
+
+        const encryptedData = encryptMessage({ message: valueToEncrypt as string, key: secretKey });
+
+        (encryptedMessage.data as IUnknownMessageData)[key] = encryptedData.message;
+      }
+    }
+
+    return encryptedMessage;
+  }
+
+  decrypt(
+    message: TMessage,
+    secretKey: string,
+  ): TMessage {
+    if (!message.vaultkeyid) return message;
+
+    if (!this.definition.encryption) {
+      throw new Error(`Message encryption schema undefined: ${this.definition.cloudEvent.type}`);
+    }
+
+    const { vaultkeyid, ...decryptedMessage } = message;
+    const data: IUnknownMessageData = (decryptedMessage as TMessage).data;
+
+    if (this.definition.encryption.encryptMetadata) {
+      const valueToDecrypt: unknown = data;
+      const decryptedData = decryptMessage({ message: valueToDecrypt as string, key: secretKey });
+      (decryptedMessage.data as any) = JSON.parse(decryptedData.message);
+    } else {
+
+      for (let key in this.definition.encryption) {
+        if (!Object.hasOwn(this.definition.encryption, key)) {
+          continue;
+        }
+
+        const valueToDecrypt: unknown = data[key];
+
+        if (!valueToDecrypt) {
+          continue;
+        }
+
+        const decryptedData = decryptMessage({ message: valueToDecrypt as string, key: secretKey });
+
+        if (this.definition.encryption[key].type !== 'string') {
+          (decryptedMessage.data as IUnknownMessageData)[key] = JSON.parse(decryptedData.message);
+        } else {
+          (decryptedMessage.data as IUnknownMessageData)[key] = decryptedData.message;
+        }
+      }
+    }
+
+    return decryptedMessage as TMessage;
   }
 }
