@@ -77,6 +77,11 @@ export interface IMessageV1<
    */
   tenantid: 'SYSTEM' | string;
 
+  /**
+   * @format date-time
+   */
+  time?: string;
+
   vaultkeyid?: string;
 }
 
@@ -85,4 +90,3 @@ export interface IMessageV1<
  * or handling a payload masquerading as a message.
  */
 export interface IUnknownMessage extends Partial<IMessage> {}
-
