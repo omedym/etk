@@ -16,15 +16,20 @@ describe('MessageBuilder', () => {
   };
 
   const data: ITestData = {};
+  const tenantId: string = 'tenantId';
 
   const TestEventSchema = {
     type: 'object',
     properties: {
       type: { type: 'string' },
       data: { type: 'object' },
-      aMissingProperty: { type: 'string' },
+      tenantid: {
+        minLength: 5,
+        maxLength: 10,
+        type: 'string',
+      },
     },
-    required: ['data', 'type', 'aMissingProperty'],
+    required: ['data', 'type', 'tenantid'],
   };
 
   class TestEvent extends AbstractMessageBuilder<ITestData, IEventMetadata, ITestEvent> {
@@ -33,53 +38,59 @@ describe('MessageBuilder', () => {
   }
 
   it('can seal an instance', () => {
-    const event = new TestEvent().build('', '', data).seal().get();
-
+    const event = new TestEvent().with(tenantId, '', data).build({ throwOnError: false });
     expect(event.idempotencykey).toBeTruthy();
   });
 
   it('can seal and verify instance', () => {
-    const event = new TestEvent().build('', '', data).seal();
-    const isVerified = event.verify();
+    const event = new TestEvent().with(tenantId, '', data).build({ throwOnError: false });
+    const isVerified = new TestEvent().verify(event);
 
     expect(isVerified).toBeTruthy();
   });
 
   it('can validate an instance', () => {
-    const event = new TestEvent().build('', '', data);
-    const check = event.validate();
+    const event = new TestEvent().with(tenantId, '', data).build();
+    const check = new TestEvent().validate(event);
 
-    expect(check).toBeTruthy();
+    expect(check.isValid).toBeTruthy();
   });
 
   it(`can report an invalid instance`, () => {
-    const event = new TestEvent().build('', '', data);
-    const check = event.validate();
+    const event = new TestEvent().with(tenantId, '', data).build();
+    const { type: missingType, ...badEvent } = event;
+
+    const check = new TestEvent().validate(badEvent as ITestEvent);
 
     expect(check.isValid).toBeFalsy();
+
+    if (check.isValid)
+      return;
+
     expect(check.errors).toHaveLength(1);
   });
 
   it(`can set correlation (correlationId)`, () => {
-    const event1 = new TestEvent().build('', '', data);
-    const event2 = new TestEvent().build('', '', data);
+    const builder = new TestEvent().with(tenantId, '', data);
 
-    event2.correlateWith(event1.get());
-    expect(event2.get().metadata.correlationId).toEqual(event1.get().id);
-    expect(event2.get().metadata.traceId).toEqual(event1.get().id);
+    const event1 = builder.build();
+    const event2 = builder.correlateWith(event1).build();
+
+    expect(event2.metadata.correlationId).toEqual(event1.id);
+    expect(event2.metadata.traceId).toEqual(event1.id);
   });
 
   it(`can set correlation (traceId)`, () => {
-    const event1 = new TestEvent().build('', '', data);
-    const event2 = new TestEvent().build('', '', data);
-    const event3 = new TestEvent().build('', '', data);
+    const builder = new TestEvent().with(tenantId, '', data);
 
-    event2.correlateWith(event1.get());
-    event3.correlateWith(event2.get());
-    expect(event2.get().metadata.correlationId).toEqual(event1.get().id);
-    expect(event2.get().metadata.traceId).toEqual(event1.get().id);
+    const event1 = builder.build();
+    const event2 = builder.correlateWith(event1).build();
+    const event3 = builder.correlateWith(event2).build();
 
-    expect(event3.get().metadata.correlationId).toEqual(event2.get().id);
-    expect(event3.get().metadata.traceId).toEqual(event1.get().id);
+    expect(event2.metadata.correlationId).toEqual(event1.id);
+    expect(event2.metadata.traceId).toEqual(event1.id);
+
+    expect(event3.metadata.correlationId).toEqual(event2.id);
+    expect(event3.metadata.traceId).toEqual(event1.id);
   });
 });
