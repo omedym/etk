@@ -1,3 +1,5 @@
+load("@aspect_bazel_lib//lib:copy_file.bzl", "copy_file")
+load("@aspect_rules_esbuild//esbuild:defs.bzl", "esbuild")
 load("@aspect_rules_jest//jest:defs.bzl", "jest_test")
 load("@aspect_rules_js//npm:defs.bzl", "npm_package")
 load("@aspect_rules_ts//ts:defs.bzl", "ts_config", "ts_project")
@@ -43,6 +45,7 @@ ts_project(
   tsconfig = ":tsconfig_bazel",
   validate = True,
   deps = _DEPS,
+  out_dir = "lib",
 )
 
 # Generate a package.json at build time to formalize this directory as a valid NPM package
@@ -51,17 +54,66 @@ genrule(
   outs = ["package.json"],
   cmd = """
     echo "{
-      \\"name\\": \\"@omedym/nestjs-dmq-core\\",
-      \\"version\\": \\"0.1.0\\",
-      \\"main\\": \\"index.js\\",
-      \\"typings\\": \\"index.d.ts\\"
-    }" > $@
+  \\"name\\": \\"@omedym/nestjs-dmq-core\\",
+  \\"version\\": \\"0.1.1\\",
+  \\"author\\": \\"Omedym, LLC\\",
+  \\"license\\": \\"MIT\\",
+  \\"main\\": \\"lib/index.js\\",
+  \\"module\\": \\"dist/index.js\\",
+  \\"types\\": \\"lib/index.d.ts\\",
+  \\"engines\\": {
+    \\"node\\": \\">=18\\"
+  },
+  \\"repository\\": {
+    \\"type\\": \\"git\\",
+    \\"url\\": \\"https://github.com/omedym/nestjs-dmq.git\\",
+    \\"directory\\": \\"packages/core\\"
+  },
+  \\"dependencies\\": {
+    \\"@nestjs/bullmq\\": \\"^10.0.1\\",
+    \\"@nestjs/common\\": \\"^10.2.2\\",
+    \\"@nestjs/core\\": \\"^10.2.2\\",
+    \\"@paralleldrive/cuid2\\": \\"^2.2.2\\",
+    \\"@vvo/tzdb\\": \\"^6.108.0\\",
+    \\"ajv\\": \\"^6.12.6\\",
+    \\"bullmq\\": \\"^3.15.5\\",
+    \\"cloudevents\\": \\"^8.0.0\\",
+    \\"cron-validator\\": \\"^1.3.1\\",
+    \\"luxon\\": \\"^2.5.2\\",
+    \\"safe-stable-stringify\\": \\"^2.4.3\\",
+    \\"ts-pattern\\": \\"^4.3.0\\"
+  }
+}" > $@
   """,
 )
 
+copy_file(
+  name = "license",
+  src = "//:npm_license",
+  out = "LICENSE"
+)
+
+esbuild(
+  name = "dist",
+  srcs = glob([":ts/dist/**/*"]),
+  data = [":package_json"] + [":license"],
+  deps = _DEPS,
+  entry_point = "lib/index.js",
+  external = [
+    "@nestjs/common",
+    "@nestjs/core",
+  ],
+  format = "esm",
+  output_dir = True,
+  platform = "node",
+  splitting = True,
+  target = "esnext",
+)
+
+
 npm_package(
-  name = "js",
-  srcs = [":ts"],
+  name = "npm",
+  srcs = [":lib"],
   data = [":package_json"] + _DEPS,
   package = "@omedym/nestjs-dmq-core",
 )

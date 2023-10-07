@@ -5,7 +5,7 @@
     "type": "git",
     "url": "https://github.com/omedym/nestjs-dmq.git"
   },
-  "version": "0.1.0",
+  "version": "0.1.1",
   "author": "Omedym, LLC",
   "license": "MIT",
   "packageManager": "^pnpm@8.7.0",
