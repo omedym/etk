@@ -33,6 +33,12 @@ npm_link_package(
 npm_link_all_packages(name = "node_modules")
 
 copy_to_bin(
+  name = "npm_license",
+  srcs = ["LICENSE"],
+  visibility = ["//visibility:public"],
+)
+
+copy_to_bin(
   name = "jest_config_unit",
   srcs = ["jest.unit.config.js"],
   visibility = ["//visibility:public"],

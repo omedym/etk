@@ -32,8 +32,15 @@ aspect_bazel_lib_dependencies()
 load("@aspect_rules_js//js:repositories.bzl", "rules_js_dependencies")
 rules_js_dependencies()
 
-load("@aspect_rules_ts//ts:repositories.bzl", "rules_ts_dependencies", LATEST_TS_VERSION = "LATEST_VERSION")
-rules_ts_dependencies(ts_version = LATEST_TS_VERSION)
+load("@aspect_rules_ts//ts:repositories.bzl", "rules_ts_dependencies")
+rules_ts_dependencies(
+    # This keeps the TypeScript version in-sync with the editor, which is typically best.
+    ts_version_from = "//:package.json",
+
+    # Alternatively, you could pick a specific version, or use
+    # load("@aspect_rules_ts//ts:repositories.bzl", "LATEST_TYPESCRIPT_VERSION")
+    # ts_version = LATEST_TYPESCRIPT_VERSION
+)
 
 load("@aspect_rules_js//npm:npm_import.bzl", "npm_translate_lock")
 npm_translate_lock(
@@ -58,6 +65,18 @@ npm_translate_lock(
     "cpu-features": [],
   },
 )
+
+######################
+# rules_esbuild setup #
+######################
+
+# Fetches the rules_esbuild dependencies.
+# If you want to have a different version of some dependency,
+# you should fetch it *before* calling this.
+# Alternatively, you can skip calling this function, so long as you've
+# already fetched all the dependencies.
+load("@aspect_rules_esbuild//esbuild:dependencies.bzl", "rules_esbuild_dependencies")
+rules_esbuild_dependencies()
 
 ####################
 # rules_jest setup #
@@ -93,4 +112,12 @@ nodejs_register_toolchains(
 nodejs_register_toolchains(
   name = "nodejs",
   node_version = DEFAULT_NODE_VERSION,
+)
+
+# Register a toolchain containing esbuild npm package and native bindings
+load("@aspect_rules_esbuild//esbuild:repositories.bzl", "LATEST_ESBUILD_VERSION", "esbuild_register_toolchains")
+
+esbuild_register_toolchains(
+  name = "esbuild",
+  esbuild_version = LATEST_ESBUILD_VERSION,
 )
