@@ -1,13 +1,17 @@
 {
   "name": "root",
   "description": "",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/omedym/nestjs-dmq.git"
+  },
   "version": "0.1.0",
   "author": "Omedym, LLC",
   "license": "MIT",
-  "packageManager": "^pnpm@8.4.0",
+  "packageManager": "^pnpm@8.7.0",
   "engines": {
-    "node": ">=16",
-    "pnpm": ">=8.4 <9"
+    "node": ">=18",
+    "pnpm": ">=8.7 <9"
   },
   "scripts": {
     "build": "bazel build --build_tag_filters=ts -- //packages/...",
@@ -65,7 +69,7 @@
     "typescript": "^4.9.5"
   },
   "resolutions": {
-    "@types/node": "^16",
+    "@types/node": "^18",
     "typescript": "^4.9.5"
   }
 }
