@@ -66,10 +66,10 @@
     "testcontainers": "^10.2.1",
     "ts-jest": "^29.1.1",
     "tslib": "^2.6.2",
-    "typescript": "^4.9.5"
+    "typescript": "4.9.5"
   },
   "resolutions": {
     "@types/node": "^18",
-    "typescript": "^4.9.5"
+    "typescript": "4.9.5"
   }
 }
