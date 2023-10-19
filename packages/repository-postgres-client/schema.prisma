@@ -1,7 +1,7 @@
 generator client {
   binaryTargets = ["native", "debian-openssl-1.1.x"]
   provider = "prisma-client-js"
-  output   = "./generated/client"
+  output   = "./lib/client"
   previewFeatures = ["multiSchema", "views"]
 }
 

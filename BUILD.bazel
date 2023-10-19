@@ -84,7 +84,7 @@ filegroup(
     "//:node_modules/testcontainers",
   ],
   data = [
-    "//packages/repository-postgres/prisma:prisma_schema_postgres",
+    "//packages/repository-postgres-client:prisma_schema_postgres",
   ],
   visibility = ["//visibility:public"],
 )
