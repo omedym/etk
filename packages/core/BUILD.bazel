@@ -114,7 +114,7 @@ esbuild(
 npm_package(
   name = "npm",
   srcs = [":lib"],
-  data = [":package_json"] + _DEPS,
+  data = [":package_json"] + [":license"] + _DEPS,
   package = "@omedym/nestjs-dmq-core",
 )
 
