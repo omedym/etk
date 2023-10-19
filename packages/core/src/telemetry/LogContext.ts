@@ -1,19 +1,10 @@
-import { configure as stringifyConfigure } from 'safe-stable-stringify'
+import { configure as stringifyConfigure } from 'safe-stable-stringify';
+import { ContextAttributesToCheck, LogContext, LogContextKey } from './types';
 
 const safeStringify = stringifyConfigure({
   deterministic: false,
   maximumDepth: 8,
 })
-
-export interface LogContext {
-  datastore?: string;
-  jobId?: string;
-  messageId?: string;
-  messageType?: string;
-  queueId?: string;
-  tenantId?: string;
-  traceId?: string;
-}
 
 /**
  * Safely traverse log metadata and search for nested occurrences of any LogContext
@@ -23,20 +14,26 @@ export interface LogContext {
  * This does not overwrite any attributes provided in the parentLogContext;
  *
  * @param parentContext
- * @param logMetadata
+ * @param metadata
+ * @param attributes
  * @returns LogContext
  */
-export const getLogContext = (
-  parentContext: LogContext,
-  ...logMetadata: any[]
-): LogContext => {
-  const metadataWithoutError = logMetadata.filter(p => !(p instanceof Error));
+export const getLogContext = ({
+  metadata,
+  parentContext,
+  attributes,
+}: {
+  parentContext: LogContext;
+  metadata: unknown[];
+  attributes: ContextAttributesToCheck;
+}): LogContext => {
+  const metadataWithoutError = metadata.filter((p) => !(p instanceof Error));
 
   const safeMetadata = JSON.parse(safeStringify(metadataWithoutError));
-  const logContext = findLogContext(parentContext, safeMetadata);
+  const logContext = findLogContext(parentContext, attributes, safeMetadata);
 
   return logContext;
-}
+};
 
 /**
  * Recursively traverse an 0..n nested objects for occurrences of any LogContext
@@ -46,68 +43,93 @@ export const getLogContext = (
  * @param logMetadata
  * @returns LogContext
  */
-const findLogContext = (
+export const findLogContext = (
   parentContext: LogContext,
-  ...logMetadata: any[]
+  contextAttributes: ContextAttributesToCheck,
+  ...logMetadata: unknown[]
 ): LogContext => {
-  if(!logMetadata) return {};
-  if(logMetadata.length < 0) return {};
+
+  const depth = {
+    maximumDepth: 8,
+    currentDepth: 0,
+  };
+
+  return findLogContext_inner(depth, parentContext, contextAttributes, ...logMetadata);
+};
+
+/**
+ * Inner method of findLogContext(). It recursively traverse an 0..n nested objects for
+ * occurrences of any LogContext attributes up the maximum depth specified.
+ * Does not overwrite any previously provided or found log context attributes.
+ *
+ * @param parentContext
+ * @param logMetadata
+ * @returns LogContext
+ */
+export const findLogContext_inner = (
+  opts: {
+    maximumDepth: number,
+    currentDepth: number,
+  },
+  parentContext: LogContext,
+  contextAttributes: ContextAttributesToCheck,
+  ...logMetadata: unknown[]
+): LogContext => {
+  if (!logMetadata.length) return {};
 
   let context: LogContext = {};
   const parentKeys = Object.keys(parentContext);
 
+  if (opts.currentDepth >= opts.maximumDepth)
+    return { ...context, ...parentContext };
+
   logMetadata.map((optionalParam) => {
-    if (typeof optionalParam !== 'object' || optionalParam === null) return;
-    const paramObj = optionalParam as any;
+    if (!optionalParam || typeof optionalParam !== 'object') return;
+    const paramObj = optionalParam as Record<string, unknown>;
     const paramKeys = Object.keys(paramObj);
     const contextKeys = Object.keys(context);
 
-    paramKeys.forEach(paramKey => {
+    paramKeys.forEach((paramKey) => {
       if (parentKeys.includes(paramKey)) return;
       if (contextKeys.includes(paramKey)) return;
 
-      const param  = paramObj[paramKey];
+      const param = paramObj[paramKey];
 
       if (typeof param === 'object') {
-        const paramContext = findLogContext(context, param);
+        const depth = { maximumDepth: opts.maximumDepth, currentDepth: opts.currentDepth + 1 };
+        const paramContext = findLogContext_inner(depth, context, contextAttributes, param);
         context = { ...paramContext, ...context };
         return;
       }
 
-      switch(paramKey) {
-        case 'datastore':
-        case 'jobId':
-        case 'messageId':
-        case 'messageType':
-        case 'queueId':
-        case 'tenantId':
-        case 'traceId':
-          context = { ...{[paramKey]: param }, ...context };
-          return;
+      if (!isValueStringOrNumber(param)) {
+        return;
+      }
 
-        case 'id':
-          // Check to see if this object is a CloudEvent or other message type
-          if (paramKeys.includes('data') && paramKeys.includes('specversion'))
-            context = { ...{ messageId: param }, ...context };
-          return;
+      const contextAttributesKey = paramKey as LogContextKey;
+      const methodOrTrue = contextAttributes[contextAttributesKey];
 
-        case 'tenantid':
-          // Check to see if this object is a CloudEvent or other message type
-          if (paramKeys.includes('data') && paramKeys.includes('specversion'))
-            context = { ...( !context.tenantId ? { tenantId: param } : {}), ...context };
-            return;
+      if (methodOrTrue === true) {
+        context = { ...{ [contextAttributesKey]: param }, ...context };
+        return;
+      }
 
-        case 'type':
-          // Check to see if this object is a CloudEvent or other message type
-          if (paramKeys.includes('data') && paramKeys.includes('specversion'))
-            context = { ...{ messageType: param }, ...context };
-          return;
-
-        default:
-          return;
+      if (typeof methodOrTrue === 'function') {
+        const method = methodOrTrue;
+        const keyValueToPopulate = method(context, paramObj);
+        context = { ...keyValueToPopulate, ...context };
+        return;
       }
     });
-  })
+  });
 
   return { ...context, ...parentContext };
+};
+
+const isValueStringOrNumber = (value: unknown): value is string => {
+  if (!value) {
+    return false;
+  }
+
+  return typeof value === 'string' || typeof value === 'number';
 };
