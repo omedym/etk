@@ -1,8 +1,16 @@
 import { Job } from 'bullmq';
 import { DateTime } from 'luxon';
+import stableStringify from 'safe-stable-stringify';
 
-import { ILogger, LogContext, getLogContext } from '../telemetry';
-import { IMessage, IUnknownMessage } from '../message';
+import {
+  cloudEventContextAttributes,
+  contextAttributes,
+  getLogContext,
+  ILogger,
+  LogContext,
+} from '../telemetry';
+
+import { IMessage, IMessageDefinition, IUnknownMessage } from '../message';
 import { IMessageHandlerContext } from './TrackedQueueProcessor';
 import { TrackedJobEventContext, TrackedJobEventData } from './TrackedJobEventData.type';
 
@@ -15,46 +23,64 @@ export const QueueSuffix = NESTJS_DMQ__QUEUE_SUFFIX ? `-${NESTJS_DMQ__QUEUE_SUFF
 
 export const DefaultClearContext = ['Tracked Job', 'Tracked Job Event'];
 
+const attributes = { ...contextAttributes, ...cloudEventContextAttributes };
+
 /**
  * @description
  * Builds a specialized Job specific logger that when used logs its messages
  * both to the Job object's log and the configured system logger.
  */
-const buildJobLogger = (
-  logger: ILogger,
-  job: Job,
-  context: LogContext,
-): ILogger => {
+const buildJobLogger = (logger: ILogger, job: Job, context: LogContext): ILogger => {
   const timestamp = DateTime.now().toISO();
 
   // const _logger = logger as ILogger;
 
   return {
     debug: (message: any, ...optionalParams: any[]) => {
-      // const jobContext = getLogContext(context, ...optionalParams);
+      // const jobContext = getLogContext({
+      //   parentContext: context,
+      //   metadata: [...optionalParams],
+      //   attributes,
+      // });
       // _logger.apply('debug', jobContext, message, ...optionalParams);
       job.log(`${timestamp} debug ${message}`);
     },
     error: (message: any, ...optionalParams: any[]) => {
-      // const jobContext = getLogContext(context, ...optionalParams);
+      // const jobContext = getLogContext({
+      //   parentContext: context,
+      //   metadata: [...optionalParams],
+      //   attributes,
+      // });
       // _logger.apply('error', jobContext, message, ...optionalParams);
       job.log(`${timestamp} error ${message}`);
     },
     info: (message: any, ...optionalParams: any[]): void => {
-      // const jobContext = getLogContext(context, ...optionalParams);
+      // const jobContext = getLogContext({
+      //   parentContext: context,
+      //   metadata: [...optionalParams],
+      //   attributes,
+      // });
       // _logger.apply('info', jobContext, message, ...optionalParams);
       job.log(`${timestamp} info  ${message}`);
     },
     log: (message: any, ...optionalParams: any[]): void => {
-      // const jobContext = getLogContext(context, ...optionalParams);
+      // const jobContext = getLogContext({
+      //   parentContext: context,
+      //   metadata: [...optionalParams],
+      //   attributes,
+      // });
       // _logger.apply('log', jobContext, message, ...optionalParams);
       job.log(`${timestamp} debug ${message}`);
     },
     warn: (message: any, ...optionalParams: any[]) => {
-      // const jobContext = getLogContext(context, ...optionalParams);
+      // const jobContext = getLogContext({
+      //   parentContext: context,
+      //   metadata: [...optionalParams],
+      //   attributes,
+      // });
       // _logger.apply('warn', jobContext, message, ...optionalParams);
       job.log(`${timestamp} warn  ${message}`);
-    }
+    },
   };
 };
 
@@ -64,16 +90,16 @@ type JobTelemetry = {
   jobId: string;
   queueId: string;
   tenantId: string | undefined;
-}
+};
 
 type MessageTelemetry = {
   tenantId: string;
   messageId: string;
-}
+};
 
 type TrackedJobTelemetryResult = {
   jobLogger: ILogger;
-}
+};
 
 /** Configure Logger telemetry for a Job and Message */
 export function setTrackedJobTelemetry<T extends IMessage | IUnknownMessage>(
@@ -96,7 +122,7 @@ export function setTrackedJobTelemetry<T extends IMessage | IUnknownMessage>(
 
     jobEvent: null,
     queue: null,
-  }
+  };
 
   const logContext: LogContext = {
     ...tags as any,
@@ -111,7 +137,7 @@ export function setTrackedJobTelemetry<T extends IMessage | IUnknownMessage>(
 /** Configure Logger telemetry for a TrackedJobEvent */
 export function setTrackedJobEventTelemetry(
   logger: ILogger,
-  context: { job: Job<TrackedJobEventData>; message: TrackedJobEventContext, token?: string; },
+  context: { job: Job<TrackedJobEventData>; message: TrackedJobEventContext; token?: string },
 ): TrackedJobTelemetryResult {
 
   const { job, message } = context;
@@ -128,7 +154,8 @@ export function setTrackedJobEventTelemetry(
 
     jobEvent: null,
     queue: null,
-  }
+  };
+
 
   const logContext: LogContext = {
     ...tags as any,

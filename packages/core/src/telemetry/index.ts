@@ -1,2 +1,2 @@
 export * from './LogContext';
-export * from './logger';
+export * from './types';
