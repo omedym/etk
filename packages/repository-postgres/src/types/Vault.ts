@@ -1,4 +1,4 @@
-import { Vault, VaultState } from '@omedym/nestjs-dmq-postgres-client';
+import { Vault, VaultState } from '@omedym/nestjs-dmq-repository-postgres-client';
 
 export { VaultState, Vault };
 

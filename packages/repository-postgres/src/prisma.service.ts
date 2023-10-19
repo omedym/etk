@@ -1,6 +1,6 @@
 import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 
-import { PrismaClient, Prisma } from '@omedym/nestjs-dmq-postgres-client';
+import { PrismaClient, Prisma } from '@omedym/nestjs-dmq-repository-postgres-client';
 
 @Injectable()
 export class PrismaService
