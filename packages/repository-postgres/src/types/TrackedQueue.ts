@@ -3,7 +3,7 @@ import {
   JobEvent,
   JobState,
   JobDataType,
-} from '@omedym/nestjs-dmq-postgres-client';
+} from '@omedym/nestjs-dmq-repository-postgres-client';
 
 export interface ITrackedQueueJob<T extends object = {}> {
   tenantId: string;

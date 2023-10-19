@@ -16,18 +16,19 @@ ts_config(
 )
 
 npm_link_package(
-  name = "node_modules/@omedym/nestjs-dmq-postgres-client",
-  src = "//packages/repository-postgres/prisma:js_client",
+  name = "node_modules/@omedym/nestjs-dmq-repository-postgres",
+  src = "//packages/repository-postgres:npm",
 )
 
 npm_link_package(
-  name = "node_modules/@omedym/nestjs-dmq-repository-postgres",
-  src = "//packages/repository-postgres:js",
+  name = "node_modules/@omedym/nestjs-dmq-repository-postgres-client",
+  src = "//packages/repository-postgres-client:npm",
 )
+
 
 npm_link_package(
   name = "node_modules/@omedym/nestjs-dmq-core",
-  src = "//packages/core:js",
+  src = "//packages/core:npm",
 )
 
 npm_link_all_packages(name = "node_modules")

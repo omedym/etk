@@ -1,3 +1,5 @@
+load("@aspect_bazel_lib//lib:copy_file.bzl", "copy_file")
+load("@aspect_rules_esbuild//esbuild:defs.bzl", "esbuild")
 load("@aspect_rules_jest//jest:defs.bzl", "jest_test")
 load("@aspect_rules_js//npm:defs.bzl", "npm_package")
 load("@aspect_rules_ts//ts:defs.bzl", "ts_config", "ts_project")
@@ -18,7 +20,7 @@ _DEPS = [
   "//:node_modules/reflect-metadata",
   "//:node_modules/neverthrow",
 
-  "//:node_modules/@omedym/nestjs-dmq-postgres-client",
+  "//:node_modules/@omedym/nestjs-dmq-repository-postgres-client",
 
   # Dev Dependencies
   "//:node_modules/@types/luxon",
@@ -37,13 +39,72 @@ ts_project(
   tsconfig = ":tsconfig_bazel",
   validate = True,
   deps = _DEPS,
+  out_dir = "lib",
 )
 
 # Generate a package.json at build time to formalize this directory as a valid NPM package
+genrule(
+  name = "package_json",
+  outs = ["package.json"],
+  cmd = """
+    echo "{
+  \\"name\\": \\"@omedym/nestjs-dmq-repository-postgres\\",
+  \\"version\\": \\"0.1.1\\",
+  \\"author\\": \\"Omedym, LLC\\",
+  \\"license\\": \\"MIT\\",
+  \\"main\\": \\"lib/index.js\\",
+  \\"module\\": \\"dist/index.js\\",
+  \\"types\\": \\"lib/index.d.ts\\",
+  \\"engines\\": {
+    \\"node\\": \\">=18\\"
+  },
+  \\"repository\\": {
+    \\"type\\": \\"git\\",
+    \\"url\\": \\"https://github.com/omedym/nestjs-dmq.git\\",
+    \\"directory\\": \\"packages/repository-postgres\\"
+  },
+  \\"dependencies\\": {
+    \\"@nestjs/common\\": \\"^10.2.2\\",
+    \\"@nestjs/core\\": \\"^10.2.2\\",
+    \\"@omedym/nestjs-dmq-repository-postgres-client\\": \\"^0.1.1\\",
+    \\"@paralleldrive/cuid2\\": \\"^2.2.2\\",
+    \\"luxon\\": \\"^2.5.2\\",
+    \\"neverthrow\\": \\"^6.0.0\\",
+    \\"reflect-metadata\\": \\"^0.1.13\\"
+  }
+}" > $@
+  """,
+)
+
+copy_file(
+  name = "license",
+  src = "//:npm_license",
+  out = "LICENSE"
+)
+
+esbuild(
+  name = "dist",
+  srcs = glob([":ts/dist/**/*"]),
+  data = [":package_json"] + [":license"],
+  deps = _DEPS,
+  entry_point = "lib/index.js",
+  external = [
+    "@nestjs/common",
+    "@nestjs/core",
+    "@omedym/nestjs-dmq-repository-postgres-client",
+    "@paralleldrive/cuid2"
+  ],
+  format = "esm",
+  output_dir = True,
+  platform = "node",
+  splitting = True,
+  target = "esnext",
+)
+
 npm_package(
-  name = "js",
-  srcs = [":ts"],
-  data = _DEPS,
+  name = "npm",
+  srcs = [":lib"],
+  data = [":package_json"] + [":license"] + _DEPS,
   package = "@omedym/nestjs-dmq-repository-postgres",
 )
 
