@@ -1,7 +1,5 @@
 load("@aspect_bazel_lib//lib:copy_file.bzl", "copy_file")
-load("@aspect_bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
 load("@aspect_bazel_lib//lib:copy_to_directory.bzl", "copy_to_directory")
-load("@aspect_rules_esbuild//esbuild:defs.bzl", "esbuild")
 load("@aspect_rules_js//npm:defs.bzl", "npm_package")
 load("@npm//:prisma/package_json.bzl", "bin")
 
@@ -43,7 +41,7 @@ bin.prisma(
     "schema.prisma",
   ],
   copy_srcs_to_bin = True,
-  outs= ["generated"],
+  outs= ["lib"],
   chdir = package_name(),
   env = {
     "PRISMA_GENERATE_SKIP_AUTOINSTALL": "1",
@@ -60,12 +58,12 @@ genrule(
   cmd = """
     echo "{
   \\"name\\": \\"@omedym/nestjs-dmq-repository-postgres-client\\",
-  \\"version\\": \\"0.1.1\\",
+  \\"version\\": \\"0.1.3\\",
   \\"author\\": \\"Omedym, LLC\\",
   \\"license\\": \\"MIT\\",
-  \\"main\\": \\"generated/client/index.js\\",
-  \\"module\\": \\"generated/client/index.js\\",
-  \\"types\\": \\"generated/client/index.d.ts\\",
+  \\"main\\": \\"dist/index.js\\",
+  \\"module\\": \\"dist/index.js\\",
+  \\"types\\": \\"dist/index.d.ts\\",
   \\"engines\\": {
     \\"node\\": \\">=18\\"
   },
@@ -89,33 +87,25 @@ copy_file(
   out = "LICENSE"
 )
 
-esbuild(
-  name = "dist",
-  # srcs = [":prisma_engines", ":generate"],
-  # srcs = [":prisma_engines", ":generate"],
-  srcs = [":npm"],
-  data = [":package_json"] + [":license"],
-  # deps = _DEPS,
-  entry_point = "lib/client/index.js",
-  # external = [
-  #   # "@nestjs/common",
-  #   # "@nestjs/core",
-  # ],
-  format = "esm",
-  output_dir = True,
-  platform = "node",
-  splitting = True,
-  target = "esnext",
-)
-
 npm_package(
   name = "npm",
-  srcs = [":prisma_engines", ":generate", ":license"],
-  # data = [":package_json", ":license"],
-  exclude_srcs_patterns = [],
+  # srcs = [":dist", ":prisma_engines",],
+  srcs = [
+    ":generate",
+    ":prisma_engines",
+    ":package_json",
+    ":schema.prisma",
+    ":license"
+  ],
+  data = [":package_json", ":license"],
+  exclude_srcs_patterns = [
+    "**/node_modules/**",
+    "**/lib/client/package.json",
+    "**/lib/client/schema.prisma",
+  ],
   replace_prefixes = {
-    "prisma_engines": "",
-    "generated/client": ""
+    "prisma_engines": "dist",
+    "lib/client": "dist"
   },
   package = "@omedym/nestjs-dmq-repository-postgres-client",
 )
