@@ -51,7 +51,7 @@ export abstract class TrackedQueueProcessor<
     const context = { job, message: job.data as T, token };
     const { jobLogger } = setTrackedJobTelemetry(this.logger, context);
 
-    jobLogger.info(`Queue: ${job.queueName} Job: ${job.id} Processing: ${job.name} Message: ${job.data?.id}`, { message: job.data });
+    jobLogger.info(`Queue Job Processing`);
 
     return this.messageRouter
       ? this.messageRouter && this.messageRouter.route(jobLogger, context)
@@ -67,7 +67,7 @@ export abstract class TrackedQueueProcessor<
   // @Transaction({ name: 'onWorkerEvent', op: 'active', startNewTrace: true, clearContextFor: DefaultClearContext })
   async onActive(job: Job<T>, prev: string) {
     const { jobLogger } = setTrackedJobTelemetry(this.logger, { job, message: job.data as T });
-    jobLogger.info(`Queue: ${job.queueName} Job: ${job.id} Active: ${JSON.stringify(prev)}`);
+    jobLogger.info(`Queue Job Active`, { prev });
     await this.jobEventQueue.trackActive(job, prev).catch(error => { this.logger.error(error)});
   }
 
@@ -76,7 +76,7 @@ export abstract class TrackedQueueProcessor<
   async onCompleted(job: Job<T>) {
     const { jobLogger } = setTrackedJobTelemetry(this.logger, { job, message: job.data as T });
     const returnValue = job.returnvalue ? `: ${JSON.stringify(job.returnvalue)}` : '';
-    jobLogger.info(`Queue: ${job.queueName} Job: ${job.id} Completed${returnValue}`);
+    jobLogger.info(`Queue Job Completed`, { returnValue });
     await this.jobEventQueue.trackCompleted(job, 'active').catch(error => { this.logger.error(error)});
   }
 
@@ -84,12 +84,12 @@ export abstract class TrackedQueueProcessor<
   // @Transaction({ name: 'onWorkerEvent', op: 'error', clearContextFor: DefaultClearContext })
   async onError(error: Error) {
     try {
-      const logMsg = `Processor Error: ${error?.name} { message: ${error?.message} cause: ${error?.cause} }`;
+      const logMsg = `Processor Error: ${error?.message }`;
       this.logger.info(logMsg);
 
       error?.message.startsWith('Missing lock for job')
-        ? this.logger.debug('Missing lock for job', error)
-        : this.logger.warn(logMsg, error)
+        ? this.logger.debug('Missing lock for job', { error })
+        : this.logger.warn(logMsg, { error })
     } catch (e) {
       this.logger.error(error);
       throw error;
@@ -100,7 +100,7 @@ export abstract class TrackedQueueProcessor<
   // @Transaction({ name: 'onWorkerEvent', op: 'failed', clearContextFor: DefaultClearContext })
   async onFailed(job: Job<T>, error: Error, prev: string) {
     const { jobLogger } = setTrackedJobTelemetry(this.logger, { job, message: job.data as T });
-    jobLogger.warn(`Queue: ${job.queueName} Job: ${job.id} Failed: ${error.name} { message: ${error.message} cause: ${error.cause} }`);
+    jobLogger.warn(`Queue Job Failed: ${error?.message}`, { error });
     await this.jobEventQueue.trackFailed(job, error, prev);
   };
 
@@ -108,7 +108,8 @@ export abstract class TrackedQueueProcessor<
   // @Transaction({ name: 'onWorkerEvent', op: 'progress', clearContextFor: DefaultClearContext })
   async onProgress(job: Job<T>, progress: number | object) {
     const { jobLogger } = setTrackedJobTelemetry(this.logger, { job, message: job.data as T });
-    jobLogger.info(`Queue: ${job.queueName} Job: ${job.id} Progress: ${typeof(progress) === 'object' ? JSON.stringify(progress) : progress}`);
+    const progressCtx = typeof(progress) === 'object' ? JSON.stringify(progress) : progress;
+    jobLogger.info(`Queue Job Progress Update`, { progress: progressCtx });
     await this.jobEventQueue.trackProgress(job, progress);
   }
 
@@ -116,7 +117,7 @@ export abstract class TrackedQueueProcessor<
   // @Transaction({ name: 'onWorkerEvent', op: 'stalled', clearContextFor: DefaultClearContext })
   async onStalled(job: Job<T>, prev: string) {
     const { jobLogger } = setTrackedJobTelemetry(this.logger, { job, message: job.data as T });
-    jobLogger.warn(`Queue: ${job.queueName} Job: ${job.id} Stalled: ${JSON.stringify(prev)}`);
+    jobLogger.warn(`Queue Job Stalled`, { prev });
     await this.jobEventQueue.trackStalled(job, prev);
   }
 }
