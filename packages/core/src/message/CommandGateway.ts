@@ -1,4 +1,4 @@
-import { Job } from 'bullmq';
+import { Job, JobsOptions } from 'bullmq';
 
 import { IMessageGatewayDefinition, AbstractMessageExchange } from './base';
 import { ICommand } from './Command';
@@ -23,7 +23,7 @@ export abstract class AbstractCommandGateway<
   extends AbstractMessageExchange<TDefinition>
   implements ICommandGateway<TDefinition, T>
 {
-  async send(command: T): Promise<Job<T>> {
-    return this.publishOrSend(command);
+  async send(command: T, jobsOptions?: JobsOptions): Promise<Job<T>> {
+    return this.publishOrSend(command, jobsOptions);
   }
 }

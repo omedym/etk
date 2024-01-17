@@ -1,4 +1,4 @@
-import type { Job } from 'bullmq';
+import type { Job, JobsOptions } from 'bullmq';
 
 import { IMessageGatewayDefinition, AbstractMessageExchange } from './base';
 import { IEvent } from './Event';
@@ -23,7 +23,7 @@ export abstract class AbstractEventGateway<
   extends AbstractMessageExchange<TDefinition>
   implements IEventGateway<TDefinition, T>
 {
-    async publish(event: T): Promise<Job<T>> {
-      return this.publishOrSend(event);
+    async publish(event: T, jobsOptions?: JobsOptions): Promise<Job<T>> {
+      return this.publishOrSend(event, jobsOptions);
   }
 }
