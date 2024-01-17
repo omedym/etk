@@ -1,3 +1,5 @@
+import { JobsOptions } from 'bullmq';
+
 /**
  * IMessageDefinition
  *
@@ -10,10 +12,11 @@ export interface IMessageDefinition {
     dataContentType: 'application/json';
     type: string;
     specVersion: '1.0';
-  },
+  };
   encryption?: {
     [key: string | 'encryptMetadata']: {
       type: string;
     }
-  }
+  };
+  jobsOptions?: JobsOptions;
 }

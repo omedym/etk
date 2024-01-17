@@ -19,8 +19,16 @@ export class TrackedJobEventQueue {
 
   defaultOptions = {
     attempts: 5,
-    backoff: { type: 'exponential', delay: 500 },
+    backoff: { type: 'exponential', delay: 1000 },
     removeOnComplete: true,
+    priority: 100,
+    delay: 500,
+  }
+
+  highPriorityOptions = {
+    ...this.defaultOptions,
+    priority: 1,
+    delay: 0,
   }
 
   constructor(
@@ -34,7 +42,7 @@ export class TrackedJobEventQueue {
       updatedAt: DateTime.fromMillis(job.processedOn!),
     };
 
-    this.queue.add(JobEvent.workerJobActive, event, { jobId: createId(), ...this.defaultOptions });
+    this.queue.add(JobEvent.workerJobActive, event, { jobId: createId(), ...this.highPriorityOptions });
   }
 
   async trackCompleted(job: Job, prev: string) {
