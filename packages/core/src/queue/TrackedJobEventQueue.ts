@@ -91,10 +91,11 @@ export class TrackedJobEventQueue {
     this.queue.add(JobEvent.workerJobProgress, event, { jobId: createId(), ...this.defaultOptions });
   }
 
-  async trackStalled(job: Job, prev: string ) {
+  async trackStalled(jobId: string, prev: string) {
     const event = {
-      ...await this.buildTrackEventFromWorkerEvent(job, prev),
-      createdAt: DateTime.fromMillis(job.processedOn!),
+      jobId,
+      statePrev: prev ? prev as JobState : JobState.unknown,
+      createdAt: DateTime.now().toISO(),
     };
 
     this.queue.add(JobEvent.workerJobStalled, event, { jobId: createId(), ...this.defaultOptions });

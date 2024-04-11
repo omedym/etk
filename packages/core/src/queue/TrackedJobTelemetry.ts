@@ -106,19 +106,13 @@ export function setTrackedJobTelemetry<T extends IMessage | IUnknownMessage>(
   logger: ILogger,
   context: IMessageHandlerContext<T>,
 ): TrackedJobTelemetryResult {
-  // Fix for an unresolved issue
-  // Some stalled job does not have message property
-  if (!context.message) {
-    context.message = {} as any;
-  }
-
   const { job, message, messageDefinition, messageQueueDefinition } = context;
 
   const tags = {
     jobId: job.id,
     messageId: message.id,
     messageType: message.type,
-    queueId: QueueSuffix ? job.queueName.replace(QueueSuffix, '') : job.queueName,
+    queueId: QueueSuffix ? job.queueName?.replace(QueueSuffix, '') : job.queueName,
 
     tenantId: message.tenantid === message?.context?.tenantId ? message?.context?.tenantId : '!!',
 

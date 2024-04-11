@@ -98,7 +98,15 @@ export abstract class TrackedQueueProcessor<
 
   @OnWorkerEvent('failed')
   // @Transaction({ name: 'onWorkerEvent', op: 'failed', clearContextFor: DefaultClearContext })
-  async onFailed(job: Job<T>, error: Error, prev: string) {
+  async onFailed(job: Job<T> | undefined, error: Error, prev: string) {
+    if (!job) {
+      this.logger.warn(`Failed job is undefined, stalled job reaches the stalled limit and it is deleted by the removeOnFail option`, {
+        error,
+        prev
+      });
+      return;
+    }
+
     const { jobLogger } = setTrackedJobTelemetry(this.logger, { job, message: job.data as T });
     jobLogger.warn(`Queue Job Failed: ${error?.message}`, { error });
     await this.jobEventQueue.trackFailed(job, error, prev);
@@ -115,9 +123,8 @@ export abstract class TrackedQueueProcessor<
 
   @OnWorkerEvent('stalled')
   // @Transaction({ name: 'onWorkerEvent', op: 'stalled', clearContextFor: DefaultClearContext })
-  async onStalled(job: Job<T>, prev: string) {
-    const { jobLogger } = setTrackedJobTelemetry(this.logger, { job, message: job.data as T });
-    jobLogger.warn(`Queue Job Stalled`, { prev });
-    await this.jobEventQueue.trackStalled(job, prev);
+  async onStalled(jobId: string, prev: string) {
+    this.logger.warn(`Queue Job Stalled`, { jobId, prev });
+    await this.jobEventQueue.trackStalled(jobId, prev);
   }
 }
