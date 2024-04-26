@@ -51,7 +51,7 @@ export abstract class TrackedQueueProcessor<
     const context = { job, message: job.data as T, token };
     const { jobLogger } = setTrackedJobTelemetry(this.logger, context);
 
-    jobLogger.info(`Queue Job Processing`);
+    jobLogger.debug(`Queue Job Processing`);
 
     return this.messageRouter
       ? this.messageRouter && this.messageRouter.route(jobLogger, context)
@@ -59,7 +59,7 @@ export abstract class TrackedQueueProcessor<
   }
 
   async pause(): Promise<void> {
-    this.logger.info(`Processor Paused`);
+    this.logger.debug(`Processor Paused`);
     await this.worker.pause();
   }
 
@@ -67,7 +67,7 @@ export abstract class TrackedQueueProcessor<
   // @Transaction({ name: 'onWorkerEvent', op: 'active', startNewTrace: true, clearContextFor: DefaultClearContext })
   async onActive(job: Job<T>, prev: string) {
     const { jobLogger } = setTrackedJobTelemetry(this.logger, { job, message: job.data as T });
-    jobLogger.info(`Queue Job Active`, { prev });
+    jobLogger.debug(`Queue Job Active`, { prev });
     await this.jobEventQueue.trackActive(job, prev).catch(error => { this.logger.error(error)});
   }
 
@@ -76,7 +76,7 @@ export abstract class TrackedQueueProcessor<
   async onCompleted(job: Job<T>) {
     const { jobLogger } = setTrackedJobTelemetry(this.logger, { job, message: job.data as T });
     const returnValue = job.returnvalue ? `: ${JSON.stringify(job.returnvalue)}` : '';
-    jobLogger.info(`Queue Job Completed`, { returnValue });
+    jobLogger.debug(`Queue Job Completed`, { returnValue });
     await this.jobEventQueue.trackCompleted(job, 'active').catch(error => { this.logger.error(error)});
   }
 
@@ -85,11 +85,31 @@ export abstract class TrackedQueueProcessor<
   async onError(error: Error) {
     try {
       const logMsg = `Processor Error: ${error?.message }`;
-      this.logger.info(logMsg);
+      this.logger.debug(logMsg);
 
-      error?.message.startsWith('Missing lock for job')
-        ? this.logger.debug('Missing lock for job', { error })
-        : this.logger.warn(logMsg, { error })
+      const errMsg = error?.message.toLowerCase() ?? '';
+
+      if (errMsg.includes(`missing lock for job`)) {
+        this.logger.debug('Processor Error: Missing lock for job', { error });
+        return;
+      }
+
+      if (errMsg.includes(`memory > 'maxmemory'`)) {
+        this.logger.error('Processor Error: Out of memory', { error });
+        return;
+      }
+
+      if (errMsg.includes(`you can't write against a read only replica`)) {
+        this.logger.info('Processor Error: Shutting down, Redis connection shifted to read-only replica', { error });
+        process.exit(1);
+      }
+
+      if (errMsg.includes(`redis is loading the dataset in memory`)) {
+        this.logger.error('Processor Error: Redis is still initializing', { error });
+        return;
+      }
+
+      this.logger.warn(logMsg, { error })
     } catch (e) {
       this.logger.error(error);
       throw error;
@@ -100,7 +120,7 @@ export abstract class TrackedQueueProcessor<
   // @Transaction({ name: 'onWorkerEvent', op: 'failed', clearContextFor: DefaultClearContext })
   async onFailed(job: Job<T> | undefined, error: Error, prev: string) {
     if (!job) {
-      this.logger.warn(`Failed job is undefined, stalled job reaches the stalled limit and it is deleted by the removeOnFail option`, {
+      this.logger.warn(`Failed job is undefined, stalled job reached the stalled limit and was removed`, {
         error,
         prev
       });
@@ -117,7 +137,7 @@ export abstract class TrackedQueueProcessor<
   async onProgress(job: Job<T>, progress: number | object) {
     const { jobLogger } = setTrackedJobTelemetry(this.logger, { job, message: job.data as T });
     const progressCtx = typeof(progress) === 'object' ? JSON.stringify(progress) : progress;
-    jobLogger.info(`Queue Job Progress Update`, { progress: progressCtx });
+    jobLogger.debug(`Queue Job Progress Update`, { progress: progressCtx });
     await this.jobEventQueue.trackProgress(job, progress);
   }
 
