@@ -16,9 +16,11 @@ _DEPS = [
   "//:node_modules/@nestjs/common",
   "//:node_modules/@nestjs/core",
   "//:node_modules/@paralleldrive/cuid2",
+  "//:node_modules/connection-string-parser",
   "//:node_modules/luxon",
   "//:node_modules/reflect-metadata",
   "//:node_modules/neverthrow",
+  "//:node_modules/tslib",
 
   "//:node_modules/@omedym/nestjs-dmq-repository-postgres-client",
 
@@ -84,7 +86,10 @@ copy_file(
 
 esbuild(
   name = "dist",
-  srcs = glob([":ts/lib/**/*"]),
+  srcs = [
+    ":ts"
+  ],
+  # srcs = glob(["ts/lib/**"]),
   data = [":package_json"] + [":license"],
   deps = _DEPS,
   entry_point = "lib/index.js",

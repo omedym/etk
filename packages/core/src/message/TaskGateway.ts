@@ -223,7 +223,7 @@ export abstract class AbstractTaskGateway<
     jobs.map(async (job) => {
       this.logger.debug(`Reviewing repeatable jobId: ${job.id} jobName:${job.name}`, { job });
 
-      if (!job.id.includes(id) && !(job.name === name))
+      if (!job.id?.includes(id) && !(job.name === name))
         return;
 
       this.logger.info(`Removing prior repeatable job definition ${job.name}`);

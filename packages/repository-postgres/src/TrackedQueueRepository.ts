@@ -8,11 +8,10 @@ import {
   CreateTrackedJobParams,
   ITrackedQueueJob,
   UpdateTrackedJobParams,
-  Vault,
   VaultToCreate,
-  VaultState,
 } from './types';
 import { decryptMessage, encryptMessage } from './utils';
+import { VaultRecord, VaultState } from '@omedym/nestjs-dmq-repository-postgres-client';
 
 const {
   NESTJS_DMQ__QUEUE_SUFFIX = '',
@@ -52,7 +51,7 @@ export class TrackedQueueRepository {
       }
     })) ;
 
-    return job as unknown as ITrackedQueueJob<T>;
+    return job as ITrackedQueueJob<T>;
   }
 
   async trackJob<T extends object>(
@@ -93,7 +92,7 @@ export class TrackedQueueRepository {
     const jobDataToUpdate = {
       state: eventData.state,
       updatedAt: timestampAt.toJSDate(),
-      ...(log ? { log } : { log: [] }), // If provided update the log entry
+      ...(log ? { log } : {}), // If provided update the log entry
     }
 
     const jobEventToCreate = {
@@ -112,15 +111,15 @@ export class TrackedQueueRepository {
       },
       where: {
         tenantId_jobId: { tenantId, jobId }},
-    });
+    })
 
     return trackedJob as ITrackedQueueJob<T>;
   };
 
-   async createVault(data: VaultToCreate): Promise<Vault> {
+   async createVault(data: VaultToCreate): Promise<VaultRecord> {
     const encryptedKey = encryptMessage({ message: data.key, key: NESTJS_DMQ__VAULT_SECRET_KEY });
 
-    const result = await this.prisma.vault.create({
+    const result = await this.prisma.vaultRecord.create({
       data: {
         ...data,
         key: encryptedKey.message,
@@ -134,8 +133,8 @@ export class TrackedQueueRepository {
     }
   }
 
-  async findVaultKeyById({ tenantId, vaultId }: { tenantId: string; vaultId: string }): Promise<Vault | null> {
-    const result = await this.prisma.vault.findUnique({
+  async findVaultKeyById({ tenantId, vaultId }: { tenantId: string; vaultId: string }): Promise<VaultRecord | null> {
+    const result = await this.prisma.vaultRecord.findUnique({
       where: {
         tenantId_vaultId: {
           tenantId,
@@ -156,8 +155,8 @@ export class TrackedQueueRepository {
     }
   }
 
-  async findVaultKeyByEntityId({ tenantId, entityId, entityType }: { tenantId: string; entityId: string, entityType?: string }): Promise<Vault | null> {
-    const result = await this.prisma.vault.findUnique({
+  async findVaultKeyByEntityId({ tenantId, entityId, entityType }: { tenantId: string; entityId: string, entityType?: string }): Promise<VaultRecord | null> {
+    const result = await this.prisma.vaultRecord.findUnique({
       where: {
         ...(entityType ? { tenantId_entityId_entityType: {
           tenantId,
@@ -185,7 +184,7 @@ export class TrackedQueueRepository {
   }
 
    async destroyVaultKeysByEntityId({ tenantId, entityType, entityId }: { tenantId: string; entityId: string, entityType?: string}) {
-    return this.prisma.vault.updateMany({
+    return this.prisma.vaultRecord.updateMany({
       where: {
         tenantId,
         entityId,

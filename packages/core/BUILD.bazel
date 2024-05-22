@@ -24,6 +24,7 @@ _DEPS = [
   "//:node_modules/cron-validator",
   "//:node_modules/luxon",
   "//:node_modules/safe-stable-stringify",
+  "//:node_modules/tslib",
   "//:node_modules/ts-pattern",
 
   "//:node_modules/@omedym/nestjs-dmq-repository-postgres",

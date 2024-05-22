@@ -130,7 +130,7 @@ enum VaultState {
   @@schema("dmq")
 }
 
-model Vault {
+model VaultRecord {
   tenantId                  String              @db.VarChar(64)
   vaultId                   String              @db.VarChar(64) @default(cuid())
   createdAt                 DateTime            @default(now()) @db.Timestamptz(6)
@@ -145,5 +145,6 @@ model Vault {
   @@id(fields: [tenantId, vaultId])
   @@unique([tenantId, entityId])
   @@unique([tenantId, entityId, entityType])
+  @@map("vault")
   @@schema("dmq")
 }
