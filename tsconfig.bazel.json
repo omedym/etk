@@ -6,16 +6,22 @@
     "baseUrl": ".",
     "composite": true,
     "declaration": true,
+    "declarationMap": false,
     "emitDecoratorMetadata": true,
     "esModuleInterop": true,
     "experimentalDecorators": true,
     "forceConsistentCasingInFileNames": true,
-    // "importHelpers": true,
+    // If enabled this makes tslib a runtime dependency.
+    // See https://zenzes.me/today-i-learned-tslib-is-not-a-devdependency/#:~:text=There%20are%20some%20dependencies%20that,play%20a%20role%20at%20runtime.
+    "importHelpers": true,
     "incremental": true,
     "inlineSourceMap": true,
     "lib": ["ESNext"],
     "module": "CommonJS",
     "moduleResolution": "Node",
+    "noEmitHelpers": true,
+    "noImplicitAny": true,
+    "noImplicitReturns": true,
     "resolveJsonModule": true,
     "rootDir": ".",
     // "skipDefaultLibCheck": false,
@@ -25,8 +31,6 @@
     "strictPropertyInitialization": false,
     "target": "ESNext",
     //"types": ["node"]
-    "noImplicitAny": true,
-    "noImplicitReturns": true,
   },
   // If building without sandboxing, we need to prevent TypeScript from descending into
   // Bazel's external folder which contains third-party Bazel dependencies.

@@ -23,6 +23,7 @@ local_repository(
 )
 
 load("@aspect_bazel_lib//lib:repositories.bzl", "aspect_bazel_lib_dependencies")
+
 aspect_bazel_lib_dependencies()
 
 # "Aspect bazelrc presets; see https://docs.aspect.build/guides/bazelrc"
@@ -30,8 +31,17 @@ aspect_bazel_lib_dependencies()
 #write_aspect_bazelrc_presets(name = "update_aspect_bazelrc_presets")
 
 load("@aspect_rules_js//js:repositories.bzl", "rules_js_dependencies")
+
 rules_js_dependencies()
 
+##################
+# rules_ts setup #
+##################
+# Fetches the rules_ts dependencies.
+# If you want to have a different version of some dependency,
+# you should fetch it *before* calling this.
+# Alternatively, you can skip calling this function, so long as you've
+# already fetched all the dependencies.
 load("@aspect_rules_ts//ts:repositories.bzl", "rules_ts_dependencies")
 rules_ts_dependencies(
     # This keeps the TypeScript version in-sync with the editor, which is typically best.
@@ -43,6 +53,7 @@ rules_ts_dependencies(
 )
 
 load("@aspect_rules_js//npm:npm_import.bzl", "npm_translate_lock")
+
 npm_translate_lock(
   name = "npm",
   bins = {

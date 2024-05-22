@@ -1,4 +1,9 @@
+# Bazel does not yet support wildcards or other .gitignore semantics for
+# .bazelignore. Two issues for this feature request are outstanding:
+# https://github.com/bazelbuild/bazel/issues/7093
+# https://github.com/bazelbuild/bazel/issues/8106
+.git
+bazel-bin
+bazel-out
 node_modules
 dist
-bazel-out
-bazel-bin

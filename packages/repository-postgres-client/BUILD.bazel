@@ -21,36 +21,6 @@ filegroup(
   visibility = ["//visibility:public"],
 )
 
-
-bin.prisma(
-  name = "generate",
-  srcs = [
-    "package_json",
-    ":schema.prisma",
-    "//:node_modules/@prisma/client",
-    "//:node_modules/@prisma/engines",
-    "//:node_modules/@prisma/generator-helper",
-    "//:node_modules/typescript",
-
-    # Dev Dependencies
-    "//:node_modules/@types/node",
-  ],
-  args = [
-    "generate",
-    "--schema",
-    "schema.prisma",
-  ],
-  copy_srcs_to_bin = True,
-  outs= ["lib"],
-  chdir = package_name(),
-  env = {
-    "PRISMA_GENERATE_SKIP_AUTOINSTALL": "1",
-    "PRISMA_SKIP_POSTINSTALL_GENERATE": "1",
-    # This is to fool Prisma CLI that wants to copy something here we also inject the actual client package.json
-    "PRISMA_QUERY_ENGINE_LIBRARY": "./package.json",
-  }
-)
-
 # Generate a package.json at build time to formalize this directory as a valid NPM package
 genrule(
   name = "package_json",
@@ -81,6 +51,38 @@ genrule(
   """,
 )
 
+bin.prisma(
+  name = "generate",
+  srcs = [
+    "package_json",
+    ":schema.prisma",
+    "//:node_modules/@prisma/client",
+    "//:node_modules/@base2/pretty-print-object",
+    "//:node_modules/@prisma/generator-helper",
+    "//:node_modules/@prisma/engines",
+    "//:node_modules/prettier",
+    "//:node_modules/typescript",
+    "//:node_modules/handlebars",
+
+    "//:node_modules/@types/node",
+    "//:node_modules/@types/prettier",
+  ],
+  args = [
+    "generate",
+    "--schema",
+    "schema.prisma",
+  ],
+  copy_srcs_to_bin = True,
+  outs= ["lib"],
+  chdir = package_name(),
+  env = {
+    "PRISMA_GENERATE_SKIP_AUTOINSTALL": "1",
+    "PRISMA_SKIP_POSTINSTALL_GENERATE": "1",
+    # This is to fool Prisma CLI that wants to copy something here we also inject the actual client package.json
+    "PRISMA_QUERY_ENGINE_LIBRARY": "./package.json",
+  }
+)
+
 copy_file(
   name = "license",
   src = "//:npm_license",
@@ -95,7 +97,7 @@ npm_package(
     ":prisma_engines",
     ":package_json",
     ":schema.prisma",
-    ":license"
+    ":license",
   ],
   data = [":package_json", ":license"],
   exclude_srcs_patterns = [

@@ -7,10 +7,18 @@ import %workspace%/.aspect/bazelrc/javascript.bazelrc
 import %workspace%/.aspect/bazelrc/performance.bazelrc
 
 ### PROJECT SPECIFIC OPTIONS GO HERE ###
+# Bazel 6.4 or greater: 'common' means 'any command that supports this flag'
+
+# Use "tsc" as the transpiler when ts_project has no `transpiler` set.
+common --@aspect_rules_ts//ts:default_to_tsc_transpiler
+
+# Honor the setting of `skipLibCheck` in the tsconfig.json file
+common --@aspect_rules_ts//ts:skipLibCheck=honor_tsconfig
 
 build --disk_cache=~/.cache/bazel-disk-cache
 build --strategy=TsProject=sandboxed
 build --symlink_prefix=dist/
+build --workspace_status_command=tools/bazel_workspace_status.sh
 
 test --test_output=all
 test --nocollect_code_coverage
