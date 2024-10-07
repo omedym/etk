@@ -17,6 +17,10 @@ _DEPS = [
   "//:node_modules/@nestjs/common",
   "//:node_modules/@nestjs/core",
   "//:node_modules/@paralleldrive/cuid2",
+  "//:node_modules/@opentelemetry/api",
+  "//:node_modules/@sentry/node",
+  "//:node_modules/@sentry/types",
+  "//:node_modules/@swc/helpers",
   "//:node_modules/@vvo/tzdb",
   "//:node_modules/ajv",
   "//:node_modules/bullmq",
@@ -24,12 +28,12 @@ _DEPS = [
   "//:node_modules/cron-validator",
   "//:node_modules/luxon",
   "//:node_modules/safe-stable-stringify",
-  "//:node_modules/tslib",
   "//:node_modules/ts-pattern",
+  "//:node_modules/tslib",
 
   "//:node_modules/@omedym/nestjs-dmq-repository",
+  "//:node_modules/@omedym/nestjs-telemetry",
 
-  # Dev Dependencies
   "//:node_modules/@types/luxon",
   "//:node_modules/@types/node",
 ]
@@ -37,7 +41,8 @@ _DEPS = [
 ts_project(
   name = "ts",
   srcs = glob(["src/**/*.ts"], exclude = ["**/*.test.ts", "test/**/*.ts"]),
-  composite = True,
+  composite = False,
+  declaration_map = True,
   declaration = True,
   incremental = True,
   root_dir = "src",
@@ -126,7 +131,7 @@ jest_test(
   data = _DEPS
     + glob(["src/**/*.ts"], exclude = ["src/**/*.integration.test.ts"])
     + ["//:test_unit_deps", ":tsconfig_bazel"],
-  log_level = "warn",
+  log_level = "info",
   node_modules = "//:node_modules",
   tags = ["unit"],
   timeout = "short",
@@ -138,11 +143,13 @@ jest_test(
   data = _DEPS
     + glob(["src/**/*.ts", "test/**/*.ts"])
     + ["//:test_integration_deps", ":tsconfig_bazel"]
-    + [ # Test Dependencies
-        "//:node_modules/@nestjs/platform-express",
-      ],
+    + [
+        # Unit Test Dependencies
+        "//:node_modules/sentry-testkit",
+        "//:node_modules/@nestjs/graphql",
+    ],
   log_level = "info",
   node_modules = "//:node_modules",
   tags = ["integration"],
-  timeout = "short",
+  timeout = "moderate",
 )

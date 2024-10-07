@@ -1,7 +1,9 @@
+import { NestWorkerOptions } from '@nestjs/bullmq/dist/interfaces/worker-options.interface';
 import { createId } from '@paralleldrive/cuid2';
 import { JobsOptions, Queue } from 'bullmq';
 
-import type { ILogger } from '../../telemetry';
+import { ILogger } from '@omedym/nestjs-telemetry';
+
 import type { IMessage, IUnknownMessage } from './Message';
 import type { MessageBinding } from './MessageBinding';
 
@@ -12,6 +14,7 @@ export interface IMessageQueueDefinition {
   description?: string;
   bindings: MessageBinding[];
   jobsOptions?: JobsOptions;
+  workerOptions?: NestWorkerOptions;
 }
 
 export interface IMessageQueue<
@@ -46,7 +49,7 @@ export abstract class AbstractMessageQueue<
     this.queue = queue;
     this.logger = logger;
 
-    if (this.definition?.jobsOptions) this._defaultJobsOptions = this.definition.jobsOptions;
+    if (this?.definition?.jobsOptions) this._defaultJobsOptions = this.definition.jobsOptions;
     if (jobsOptions) this._defaultJobsOptions = jobsOptions;
   }
 
@@ -67,11 +70,21 @@ export abstract class AbstractMessageQueue<
       throw Error(logMsg);
     }
 
-    const jobId = createId();
+    let jobId = createId();
+    // > Bull is smart enough not to add the same repeatable job if the repeat options are the same.
+    // > ..If you have two repeatable jobs with the same name and options,
+    // > you could use distinct jobIds to differentiate them..
+    // We should keep repeatable jobs similar, remove all generated options
+    // Repeatable jobId is a hash of task.data (Generated in TaskGateway class)
+    if (options?.repeat && options?.jobId) {
+      delete message.time;
+      delete message.idempotencykey;
+      jobId = options.jobId;
+    }
     const jobOptions = { ...options, jobId };
     const jobName = name ?? message?.type ?? 'com.unknown';
 
-    this.logger.info(`Enqueuing ${jobName} message: ${message.id}`, { jobId, jobOptions, jobName, message })
-    return this.queue.add(jobName, message, jobOptions);
+    this.logger.info(`Enqueuing ${jobName} message: ${message.id}`, { jobId, jobOptions, jobName, message });
+    return await this.queue.add(jobName, message, jobOptions);
   }
 }

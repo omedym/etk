@@ -13,7 +13,7 @@ export interface ICommandGateway<
   T extends ICommand = any,
 > {
   readonly definition: TDefinition;
-  send: (command: T) => Promise<Job<T>>
+  send: (command: T, jobsOptions?: JobsOptions) => Promise<Job<T>>
 }
 
 export abstract class AbstractCommandGateway<

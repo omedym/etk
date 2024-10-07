@@ -6,7 +6,6 @@ import { IMessageExchangeDefinition } from './MessageExchange';
 import type { IEvent, IEventDefinition } from '../Event';
 import type { IDirectMessageBinding, IFanOutMessageBinding, IBaseMessageBinding, ITopicMessageBinding } from './MessageBinding';
 
-
 describe('Message Binding', () => {
 
   interface ITestData {}

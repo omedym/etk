@@ -42,7 +42,7 @@ export class TrackedJobEventQueue {
       updatedAt: DateTime.fromMillis(job.processedOn!),
     };
 
-    this.queue.add(JobEvent.workerJobActive, event, { jobId: createId(), ...this.highPriorityOptions });
+    await this.queue.add(JobEvent.workerJobActive, event, { jobId: createId(), ...this.highPriorityOptions });
   }
 
   async trackCompleted(job: Job, prev: string) {
@@ -52,7 +52,7 @@ export class TrackedJobEventQueue {
       createdAt: DateTime.fromMillis(job.finishedOn!),
     };
 
-    this.queue.add(JobEvent.workerJobCompleted, event, { jobId: createId(), ...this.defaultOptions });
+    await this.queue.add(JobEvent.workerJobCompleted, event, { jobId: createId(), ...this.defaultOptions });
   }
 
   async trackDelayed(queueId: string, jobId: string, delay: number, id: string) {
@@ -70,7 +70,7 @@ export class TrackedJobEventQueue {
       createdAt: timestampAt.toISO(),
     };
 
-    this.queue.add(JobEvent.queueJobDelayed, event, { jobId: createId(), ...this.defaultOptions });
+    await this.queue.add(JobEvent.queueJobDelayed, event, { jobId: createId(), ...this.defaultOptions });
   }
 
   async trackFailed(job: Job, error: Error, prev: string) {
@@ -79,7 +79,7 @@ export class TrackedJobEventQueue {
       createdAt: DateTime.fromMillis(job.finishedOn!),
     };
 
-    this.queue.add(JobEvent.workerJobFailed, event, { jobId: createId(), ...this.defaultOptions });
+    await this.queue.add(JobEvent.workerJobFailed, event, { jobId: createId(), ...this.defaultOptions });
   }
 
   async trackProgress(job: Job, progress: number | object ) {
@@ -88,7 +88,7 @@ export class TrackedJobEventQueue {
       createdAt: DateTime.fromMillis(job.processedOn!),
     };
 
-    this.queue.add(JobEvent.workerJobProgress, event, { jobId: createId(), ...this.defaultOptions });
+    await this.queue.add(JobEvent.workerJobProgress, event, { jobId: createId(), ...this.defaultOptions });
   }
 
   async trackStalled(jobId: string, prev: string) {
@@ -98,7 +98,7 @@ export class TrackedJobEventQueue {
       createdAt: DateTime.now().toISO(),
     };
 
-    this.queue.add(JobEvent.workerJobStalled, event, { jobId: createId(), ...this.defaultOptions });
+    await this.queue.add(JobEvent.workerJobStalled, event, { jobId: createId(), ...this.defaultOptions });
   }
 
   async buildTrackEventFromWorkerEvent(job: Job, prev?: string): Promise<TrackedJobEventData> {

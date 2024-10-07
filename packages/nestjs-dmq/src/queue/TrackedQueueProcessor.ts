@@ -2,12 +2,13 @@ import { OnWorkerEvent } from '@nestjs/bullmq';
 import { Inject, Injectable } from '@nestjs/common';
 import { Job } from 'bullmq';
 
-import { ILogger } from '../telemetry';
-import { Providers } from '../providers';
+import { ILogger, SentryTransaction } from '@omedym/nestjs-telemetry';
+
 import { IMessage, IMessageDefinition, IMessageQueueDefinition, IUnknownMessage } from '../message';
-import { TrackedJobEventQueue } from './TrackedJobEventQueue';
+import { Providers } from '../providers';
 import { TypedWorkerHost } from './TypedWorkerHost';
-import { setTrackedJobTelemetry } from './TrackedJobTelemetry';
+import { TrackedJobEventQueue } from './TrackedJobEventQueue';
+import { DefaultClearContext, setTrackedJobTelemetry } from './TrackedJobTelemetry';
 
 
 export interface IMessageHandlerContext<T extends IMessage | IUnknownMessage> {
@@ -46,7 +47,7 @@ export abstract class TrackedQueueProcessor<
    * attribute as the simplest way of specifying the payload type when adding new jobs to
    * the queue.
    */
-  // @Transaction({ op: 'process', clearContextFor: DefaultClearContext })
+  @SentryTransaction({ op: 'process', clearContextFor: DefaultClearContext })
   async process(job: Job<T>, token?: string): Promise<any> {
     const context = { job, message: job.data as T, token };
     const { jobLogger } = setTrackedJobTelemetry(this.logger, context);
@@ -64,7 +65,7 @@ export abstract class TrackedQueueProcessor<
   }
 
   @OnWorkerEvent('active')
-  // @Transaction({ name: 'onWorkerEvent', op: 'active', startNewTrace: true, clearContextFor: DefaultClearContext })
+  @SentryTransaction({ op: 'onWorkerEvent-active', startNewTrace: true, clearContextFor: DefaultClearContext })
   async onActive(job: Job<T>, prev: string) {
     const { jobLogger } = setTrackedJobTelemetry(this.logger, { job, message: job.data as T });
     jobLogger.debug(`Queue Job Active`, { prev });
@@ -72,7 +73,7 @@ export abstract class TrackedQueueProcessor<
   }
 
   @OnWorkerEvent('completed')
-  // @Transaction({ name: 'onWorkerEvent', op: 'completed', clearContextFor: DefaultClearContext })
+  @SentryTransaction({ op: 'onWorkerEvent-completed', clearContextFor: DefaultClearContext })
   async onCompleted(job: Job<T>) {
     const { jobLogger } = setTrackedJobTelemetry(this.logger, { job, message: job.data as T });
     const returnValue = job.returnvalue ? `: ${JSON.stringify(job.returnvalue)}` : '';
@@ -81,7 +82,7 @@ export abstract class TrackedQueueProcessor<
   }
 
   @OnWorkerEvent('error')
-  // @Transaction({ name: 'onWorkerEvent', op: 'error', clearContextFor: DefaultClearContext })
+  @SentryTransaction({ op: 'onWorkerEvent-error', clearContextFor: DefaultClearContext })
   async onError(error: Error) {
     try {
       const logMsg = `Processor Error: ${error?.message }`;
@@ -117,7 +118,7 @@ export abstract class TrackedQueueProcessor<
   }
 
   @OnWorkerEvent('failed')
-  // @Transaction({ name: 'onWorkerEvent', op: 'failed', clearContextFor: DefaultClearContext })
+  @SentryTransaction({ op: 'onWorkerEvent-failed', clearContextFor: DefaultClearContext })
   async onFailed(job: Job<T> | undefined, error: Error, prev: string) {
     if (!job) {
       this.logger.warn(`Failed job is undefined, stalled job reached the stalled limit and was removed`, {
@@ -133,7 +134,7 @@ export abstract class TrackedQueueProcessor<
   };
 
   @OnWorkerEvent('progress')
-  // @Transaction({ name: 'onWorkerEvent', op: 'progress', clearContextFor: DefaultClearContext })
+  @SentryTransaction({ op: 'onWorkerEvent-progress', clearContextFor: DefaultClearContext })
   async onProgress(job: Job<T>, progress: number | object) {
     const { jobLogger } = setTrackedJobTelemetry(this.logger, { job, message: job.data as T });
     const progressCtx = typeof(progress) === 'object' ? JSON.stringify(progress) : progress;
@@ -142,7 +143,7 @@ export abstract class TrackedQueueProcessor<
   }
 
   @OnWorkerEvent('stalled')
-  // @Transaction({ name: 'onWorkerEvent', op: 'stalled', clearContextFor: DefaultClearContext })
+  @SentryTransaction({ op: 'onWorkerEvent-stalled', clearContextFor: DefaultClearContext })
   async onStalled(jobId: string, prev: string) {
     this.logger.warn(`Queue Job Stalled`, { jobId, prev });
     await this.jobEventQueue.trackStalled(jobId, prev);

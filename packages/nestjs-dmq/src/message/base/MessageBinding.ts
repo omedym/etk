@@ -1,5 +1,5 @@
-import { IMessageQueueDefinition } from './MessageQueue';
 import { MessageDefinition, IMessage } from '..';
+import { IMessageQueueDefinition } from './MessageQueue';
 
 
 /**

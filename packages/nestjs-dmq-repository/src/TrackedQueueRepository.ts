@@ -27,29 +27,34 @@ export class TrackedQueueRepository {
   async findJobById<T extends object>(
     jobToFind: FindJobByIdParams
   ): Promise<ITrackedQueueJob<T> | null> {
-    const job = (await this.prisma.trackedQueueJob.findUnique({
+    const job = await this.prisma.trackedQueueJob.findUnique({
       where: {
          tenantId_jobId: jobToFind,
       },
       include: {
         events: true,
       }
-    })) ;
+    });
 
     return job as ITrackedQueueJob<T>;
   }
 
   async findJobByJobId<T extends object>(
-    jobId: string
+    jobId: string,
+    throwOnError: boolean = true,
   ): Promise<ITrackedQueueJob<T>> {
-    const job = (await this.prisma.trackedQueueJob.findUniqueOrThrow({
+    const query = {
       where: {
          jobId: jobId,
       },
       include: {
         events: true,
       }
-    })) ;
+    };
+
+    const job = throwOnError
+      ? (await this.prisma.trackedQueueJob.findUniqueOrThrow(query))
+      : (await this.prisma.trackedQueueJob.findUnique(query)) ;
 
     return job as ITrackedQueueJob<T>;
   }
@@ -89,6 +94,13 @@ export class TrackedQueueRepository {
     const { tenantId, jobId, createdAt, log, ...eventData } = jobToUpdate;
     const timestampAt = createdAt && createdAt.isValid ? createdAt : DateTime.now();
 
+    const trackedJob = await this.findJobById({ tenantId, jobId });
+
+    if(!trackedJob)
+      throw new Error(`Tracked Job does not exist and cannot be updated`);
+
+    const lastUpdatedAt = DateTime.fromJSDate(trackedJob.updatedAt);
+
     const jobDataToUpdate = {
       state: eventData.state,
       updatedAt: timestampAt.toJSDate(),
@@ -101,9 +113,9 @@ export class TrackedQueueRepository {
       log,
     }
 
-    const trackedJob = await this.prisma.trackedQueueJob.update({
+    const updatedTrackedJob = await this.prisma.trackedQueueJob.update({
       data: {
-        ...jobDataToUpdate,
+        ...(lastUpdatedAt < timestampAt ? jobDataToUpdate : {}),
         events: { create: [{ ...jobEventToCreate }] },
       },
       include: {
@@ -113,7 +125,7 @@ export class TrackedQueueRepository {
         tenantId_jobId: { tenantId, jobId }},
     })
 
-    return trackedJob as ITrackedQueueJob<T>;
+    return updatedTrackedJob as ITrackedQueueJob<T>;
   };
 
    async createVault(data: VaultToCreate): Promise<VaultRecord> {

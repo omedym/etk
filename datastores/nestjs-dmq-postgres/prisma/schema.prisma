@@ -8,7 +8,7 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL_POSTGRES")
-  schemas  = ["dmq"]
+  schemas  = ["etk"]
 }
 
 // TrackedQueue
@@ -21,7 +21,7 @@ enum JobDataType {
   query
   task
   unknown
-  @@schema("dmq")
+  @@schema("etk")
 }
 
 enum JobEvent {
@@ -55,7 +55,7 @@ enum JobEvent {
   workerResumed
   workerJobStalled
   unknown
-  @@schema("dmq")
+  @@schema("etk")
 }
 
 enum JobState {
@@ -68,7 +68,7 @@ enum JobState {
   waiting
   waitingChilden
   unknown
-  @@schema("dmq")
+  @@schema("etk")
 }
 
 model TrackedQueueJob {
@@ -96,8 +96,8 @@ model TrackedQueueJob {
   @@index([jobId])
   @@index([tenantId, dataId, queueGroupId, queueId, jobId, updatedAt(sort: Desc), state])
   @@index([tenantId, queueGroupId, queueId, jobId, updatedAt(sort: Desc), state])
-  @@map("trackedqueue_job")
-  @@schema("dmq")
+  @@map("dmq__trackedqueuejob")
+  @@schema("etk")
 }
 
 model TrackedQueueJobEvent {
@@ -117,8 +117,8 @@ model TrackedQueueJobEvent {
 
   @@id([tenantId, jobId, jobEventId])
   @@index([tenantId, jobId, createdAt(sort: Desc), state])
-  @@map("trackedqueue_job_event")
-  @@schema("dmq")
+  @@map("dmq__trackedqueuejob_event")
+  @@schema("etk")
 }
 
 // Vault
@@ -127,7 +127,7 @@ model TrackedQueueJobEvent {
 enum VaultState {
   active
   deleted
-  @@schema("dmq")
+  @@schema("etk")
 }
 
 model VaultRecord {
@@ -145,6 +145,6 @@ model VaultRecord {
   @@id(fields: [tenantId, vaultId])
   @@unique([tenantId, entityId])
   @@unique([tenantId, entityId, entityType])
-  @@map("vault")
-  @@schema("dmq")
+  @@map("dmq__vault")
+  @@schema("etk")
 }

@@ -1,6 +1,8 @@
+import { JobsOptions } from 'bullmq';
+
+import { Message } from '..';
 import type { IMessage } from './Message';
 import type { IMessageQueueDefinition } from './MessageQueue';
-import type { Message } from '..';
 import { AbstractMessageQueue } from './MessageQueue';
 
 
@@ -17,7 +19,7 @@ export interface IMessageConsumer<
   T extends IMessage = any,
 > {
   readonly definition: TDefinition;
-  send: (message: T) => Promise<void>;
+  send: (message: T, jobsOptions?: JobsOptions) => Promise<void>;
 }
 
 export abstract class AbstractMessageConsumer<
@@ -27,7 +29,7 @@ export abstract class AbstractMessageConsumer<
   extends AbstractMessageQueue<TDefinition>
   implements IMessageConsumer<TDefinition, T>
 {
-  async send(message: T): Promise<void> {
-    const job = await this.add(message);
+  async send(message: T, jobsOptions?: JobsOptions): Promise<void> {
+    const job = await this.add(message, jobsOptions);
   }
 }

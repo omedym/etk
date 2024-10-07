@@ -18,7 +18,7 @@ cd datastores/nestjs-dmq-postgres/prisma/npm
 pnpm publish omedym-nestjs-dmq-datastore-client-postgres-$VERSION.tgz --access public --no-git-checks --dry-run
 
 cd ../..
-cd repository-postgres/npm
+cd nestjs-dmq-repository/npm
 pnpm publish omedym-nestjs-dmq-repository-$VERSION.tgz -access public --no-git-checks --dry-run
 
 cd ../..

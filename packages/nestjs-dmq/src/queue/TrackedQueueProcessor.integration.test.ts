@@ -4,13 +4,15 @@ import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { createId } from '@paralleldrive/cuid2';
 import { PostgreSqlContainer, StartedPostgreSqlContainer } from '@testcontainers/postgresql';
-import { DelayedError, Job, Queue, RedisOptions } from 'bullmq';
+import { DelayedError, Job, Queue } from 'bullmq';
 import { DateTime, Duration } from 'luxon';
 import { exec } from 'node:child_process';
 import { promisify } from 'node:util';
-import { GenericContainer, StartedTestContainer } from 'testcontainers';
+import sentryTestkit from 'sentry-testkit';
+import {  GenericContainer, StartedTestContainer } from 'testcontainers';
 
 import { RepositoryPostgresModule, TrackedQueueRepository } from '@omedym/nestjs-dmq-repository';
+import { NestjsLogger, NestjsSentryModule } from '@omedym/nestjs-telemetry';
 
 import { IMessage, IUnknownMessage } from '../message';
 import { Providers } from '../providers';
@@ -18,9 +20,9 @@ import { TrackedJobEventProcessor } from './TrackedJobEventProcessor';
 import { TrackedJobEventQueue } from './TrackedJobEventQueue';
 import { TrackedQueueListener } from './TrackedQueueListener';
 import { TrackedQueueProcessor } from './TrackedQueueProcessor';
-import { ILogger } from '../telemetry';
-import { configureRedisConnection } from '../redis.connect';
 
+
+const { testkit, sentryTransport } = sentryTestkit();
 
 const TestConfig = {
   postgres: {
@@ -50,7 +52,22 @@ const TestConfig = {
     timeoutMs: process.env.TESTCONFIG__JEST__TIMEOUT_MS
       ? Number(process.env.TESTCONFIG__JEST__TIMEOUT_MS) : 1000 * 10,
   },
+  sentry: {
+    dsn: process.env.SENTRY_DSN
+      ? process.env.SENTRY_DSN  : '',
+  }
 };
+
+// import and call init before any other module
+import { SentryService } from '@omedym/nestjs-telemetry';
+SentryService.init({
+  tags: {
+    service: 'types-messaging',
+  },
+  debug: false,
+  transport: sentryTransport,
+  dsn: TestConfig.sentry.dsn,
+});
 
 const runfiles = new Runfiles(process.env);
 const execAsync = promisify(exec);
@@ -68,7 +85,7 @@ const mockLogger = {
   debug: jest.fn(),
   // debug: (x: any, y: any) => console.debug(x, y),
   apply: jest.fn(),
-} as unknown as ILogger;
+} as unknown as NestjsLogger;
 
 /** Monitor A BullMQ Queue Using BullMQ Queue Events */
 class QueueListener extends QueueEventsHost {
@@ -221,7 +238,7 @@ describe('TrackedProcessor', () => {
     const postgresHost = postgres.getHost();
     const postgresPort = postgres.getMappedPort(TestConfig.postgres.port);
 
-    const prismaSchemaPath = runfiles.resolveWorkspaceRelative('packages/repository-postgres/prisma');
+    const prismaSchemaPath = runfiles.resolveWorkspaceRelative('datastores/nestjs-dmq-postgres/prisma');
     const prismaSchemaFile = `${prismaSchemaPath}/schema.prisma`;
 
     DATABASE_URL_POSTGRES = `postgresql://postgres`
@@ -244,17 +261,10 @@ describe('TrackedProcessor', () => {
     testNum++;
     const QUEUE_NAME = `test_${testNum}`;
     const DELAYED_QUEUE_NAME = `${QUEUE_NAME}_delayed`;
-
-    // Set the env params used to provision Redis connections
-    const env = process.env;
-    process.env = {
-      ...env,
-      REDIS_HOST: redis.getHost(),
-      REDIS_PORT: redis.getMappedPort(TestConfig.redis.port).toString(),
-      REDIS_TLS:  'disable'
+    const redisConnectionOptions = {
+      host: redis.getHost(),
+      port: redis.getMappedPort(TestConfig.redis.port)
     };
-
-    const redisOptions: RedisOptions = configureRedisConnection();
 
     @Processor(QUEUE_NAME)
     class TestTrackedProcessor extends TrackedQueueProcessor<TestJobData> { }
@@ -284,7 +294,7 @@ describe('TrackedProcessor', () => {
         this.logger.info(`Job ${job.id} Processing - Delayed Until ${runAt.toISO()}`);
 
         job.moveToDelayed(runAt.toMillis(), token);
-        // throw new DelayedError(`Job ${job.id} delayed until ${runAt.toISO()}`);
+        throw new DelayedError(`Job ${job.id} delayed until ${runAt.toISO()}`);
       }
     }
 
@@ -297,20 +307,21 @@ describe('TrackedProcessor', () => {
     }
 
     /** The `lastEventId` setting is critical for ensuring the listener captures events that occurred before initialization */
-    @QueueEventsListener(Providers.TrackedJobEventQueue, { lastEventId: '0-0', connection: redisOptions })
+    @QueueEventsListener(Providers.TrackedJobEventQueue, { lastEventId: '0-0', connection: redisConnectionOptions })
     class TrackedJobEventListener extends QueueListener { }
-    @QueueEventsListener(QUEUE_NAME, { lastEventId: '0-0', connection: redisOptions })
+    @QueueEventsListener(QUEUE_NAME, { lastEventId: '0-0', connection: redisConnectionOptions })
     class TestQueueListener extends TestTrackedQueueListener { }
-    @QueueEventsListener(DELAYED_QUEUE_NAME, { lastEventId: '0-0', connection: redisOptions })
+    @QueueEventsListener(DELAYED_QUEUE_NAME, { lastEventId: '0-0', connection: redisConnectionOptions })
     class TestDelayedQueueListener extends TestTrackedQueueListener { }
 
     const moduleRef = await Test.createTestingModule({
       imports: [
-        BullModule.forRoot({ connection: redisOptions }),
-        BullModule.registerQueueAsync({ name: Providers.TrackedJobEventQueue }),
-        BullModule.registerQueueAsync({ name: QUEUE_NAME }),
-        BullModule.registerQueueAsync({ name: DELAYED_QUEUE_NAME }),
-        RepositoryPostgresModule.forRoot({ databaseUrl: DATABASE_URL_POSTGRES, assetBucket: '' }),
+        BullModule.forRoot({ connection: redisConnectionOptions }),
+        BullModule.registerQueue({ name: Providers.TrackedJobEventQueue }),
+        BullModule.registerQueue({ name: QUEUE_NAME }),
+        BullModule.registerQueue({ name: DELAYED_QUEUE_NAME }),
+        RepositoryPostgresModule,
+        NestjsSentryModule,
       ],
       providers: [
         TestDelayedQueue,
@@ -471,7 +482,5 @@ describe('TrackedProcessor', () => {
       expect(result!.events!.length).toEqual(7);
       expect(result!.state).toEqual('completed');
     });
-
   });
-
 });
