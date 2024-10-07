@@ -10,7 +10,7 @@ import { exec } from 'node:child_process';
 import { promisify } from 'node:util';
 import { GenericContainer, StartedTestContainer } from 'testcontainers';
 
-import { RepositoryPostgresModule, TrackedQueueRepository } from '@omedym/nestjs-dmq-repository-postgres';
+import { RepositoryPostgresModule, TrackedQueueRepository } from '@omedym/nestjs-dmq-repository';
 
 import { IMessage, IUnknownMessage } from '../message';
 import { Providers } from '../providers';

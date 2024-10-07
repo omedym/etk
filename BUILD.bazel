@@ -16,19 +16,18 @@ ts_config(
 )
 
 npm_link_package(
-  name = "node_modules/@omedym/nestjs-dmq-repository-postgres",
-  src = "//packages/repository-postgres:npm",
+  name = "node_modules/@omedym/nestjs-dmq-repository",
+  src = "//packages/nestjs-dmq-respository:npm",
 )
 
 npm_link_package(
-  name = "node_modules/@omedym/nestjs-dmq-repository-postgres-client",
-  src = "//packages/repository-postgres-client:npm",
+  name = "node_modules/@omedym/nestjs-dmq-datastore-client-postgres",
+  src = "//datastores/nextjs-dmq-postgres:npm",
 )
 
-
 npm_link_package(
-  name = "node_modules/@omedym/nestjs-dmq-core",
-  src = "//packages/core:npm",
+  name = "node_modules/@omedym/nestjs-dmq",
+  src = "//packages/nestjs-dmq:npm",
 )
 
 npm_link_all_packages(name = "node_modules")
@@ -84,7 +83,7 @@ filegroup(
     "//:node_modules/testcontainers",
   ],
   data = [
-    "//packages/repository-postgres-client:prisma_schema_postgres",
+    "//datastores/nestjs-dmq-postgres/prisma:prisma_schema_postgres",
   ],
   visibility = ["//visibility:public"],
 )

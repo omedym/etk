@@ -1,6 +1,6 @@
 import { DateTime } from 'luxon';
 
-import { JobState } from '@omedym/nestjs-dmq-repository-postgres';
+import { JobState } from '@omedym/nestjs-dmq-repository';
 
 import { IMessage, IUnknownMessage } from '../message';
 

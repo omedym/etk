@@ -4,7 +4,7 @@ import { createId } from '@paralleldrive/cuid2';
 import { Job, Queue } from 'bullmq';
 import { DateTime } from 'luxon';
 
-import { JobEvent, JobState } from '@omedym/nestjs-dmq-repository-postgres';
+import { JobEvent, JobState } from '@omedym/nestjs-dmq-repository';
 
 import { Providers } from '../providers';
 import { TrackedJobEventData } from './TrackedJobEventData.type';

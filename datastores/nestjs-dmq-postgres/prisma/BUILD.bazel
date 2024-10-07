@@ -27,7 +27,7 @@ genrule(
   outs = ["package.json"],
   cmd = """
     echo "{
-  \\"name\\": \\"@omedym/nestjs-dmq-repository-postgres-client\\",
+  \\"name\\": \\"@omedym/nestjs-dmq-datastore-client-postgres\\",
   \\"version\\": \\"0.1.3\\",
   \\"author\\": \\"Omedym, LLC\\",
   \\"license\\": \\"MIT\\",
@@ -39,8 +39,8 @@ genrule(
   },
   \\"repository\\": {
     \\"type\\": \\"git\\",
-    \\"url\\": \\"https://github.com/omedym/nestjs-dmq.git\\",
-    \\"directory\\": \\"packages/repository-postgres-client\\"
+    \\"url\\": \\"https://github.com/omedym/etk.git\\",
+    \\"directory\\": \\"datastores/nestjs-dmq-postgres\\"
   },
   \\"dependencies\\": {
     \\"@prisma/client\\": \\"^5.1.1\\",
@@ -109,5 +109,5 @@ npm_package(
     "prisma_engines": "dist",
     "lib/client": "dist"
   },
-  package = "@omedym/nestjs-dmq-repository-postgres-client",
+  package = "@omedym/nestjs-dmq-datastore-client-postgres",
 )

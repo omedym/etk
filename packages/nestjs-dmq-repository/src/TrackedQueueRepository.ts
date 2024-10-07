@@ -11,7 +11,7 @@ import {
   VaultToCreate,
 } from './types';
 import { decryptMessage, encryptMessage } from './utils';
-import { VaultRecord, VaultState } from '@omedym/nestjs-dmq-repository-postgres-client';
+import { VaultRecord, VaultState } from '@omedym/nestjs-dmq-datastore-client-postgres';
 
 const {
   NESTJS_DMQ__QUEUE_SUFFIX = '',

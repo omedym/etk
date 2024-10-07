@@ -2,7 +2,7 @@ import { Processor, getQueueToken } from '@nestjs/bullmq';
 import { Inject, Injectable } from '@nestjs/common';
 import { Job, Queue } from 'bullmq';
 
-import { JobEvent, JobState, TrackedQueueRepository } from '@omedym/nestjs-dmq-repository-postgres';
+import { JobEvent, JobState, TrackedQueueRepository } from '@omedym/nestjs-dmq-repository';
 
 import { configureRedisConnection } from '../redis.connect';
 import { Providers } from '../providers';

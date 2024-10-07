@@ -10,7 +10,7 @@ import crypto from 'crypto';
 import { DateTime } from 'luxon';
 import stableStringify from 'safe-stable-stringify';
 
-import { decryptMessage, encryptMessage } from '@omedym/nestjs-dmq-repository-postgres';
+import { decryptMessage, encryptMessage } from '@omedym/nestjs-dmq-repository';
 
 import { DefaultMessageMetadata } from './MessageMetadata';
 

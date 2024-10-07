@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { TrackedQueueRepository } from '@omedym/nestjs-dmq-repository-postgres';
+import { TrackedQueueRepository } from '@omedym/nestjs-dmq-repository';
 import { TrackedJobEventProcessor, TrackedJobEventQueue } from './queue';
 
 @Module({
