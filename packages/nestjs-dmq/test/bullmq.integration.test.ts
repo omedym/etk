@@ -37,8 +37,9 @@ const TestConfig = {
  * an available result. Only after subsequently polling is it ultimately ready;
  */
 class ExternalService {
+
   public totalRequests = 0;
-  public minRequests;
+  public minRequests = 5;
 
   constructor(options?: { minRequests?: number; }) {
     this.minRequests = options?.minRequests ?? 1;
@@ -51,6 +52,7 @@ class ExternalService {
 }
 
 class BaseTestProcessor extends WorkerHost {
+
   public externalService: ExternalService;
   public handler: (job: Job<any, any, string>, token: string) => Promise<any>;
 
