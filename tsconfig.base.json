@@ -36,5 +36,5 @@
       "@omedym/nestjs-dmq-repository": ["./packages/repository-postgres/src/index"],
     },
     // "compileOnSave": false,
-  },
+  }
 }

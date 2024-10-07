@@ -1,0 +1,40 @@
+load("//tools:module.bzl", "local_module")
+
+package(default_visibility = ["//visibility:public"])
+
+_DEPS = [
+    "//:node_modules/@apollo/server",
+    "//:node_modules/@nestjs/apollo",
+    "//:node_modules/@nestjs/common",
+    "//:node_modules/@nestjs/core",
+    "//:node_modules/@opentelemetry/api",
+    "//:node_modules/@nestjs/graphql",
+    "//:node_modules/@sentry/aws-serverless",
+    "//:node_modules/@sentry/node",
+    "//:node_modules/@sentry/types",
+    "//:node_modules/@sentry/utils",
+    "//:node_modules/chalk",
+    "//:node_modules/express",
+    "//:node_modules/graphql",
+    "//:node_modules/graphql-tag",
+    "//:node_modules/inversify",
+    "//:node_modules/logform",
+    "//:node_modules/luxon",
+    "//:node_modules/nest-raven",
+    "//:node_modules/nestjs-cls",
+    "//:node_modules/reflect-metadata",
+    "//:node_modules/safe-stable-stringify",
+    "//:node_modules/serialize-error",
+    "//:node_modules/tslib",
+    "//:node_modules/winston",
+
+    "//:node_modules/@types/express",
+    "//:node_modules/@types/luxon",
+    "//:node_modules/@types/node",
+    "//:node_modules/@types/ws",
+]
+
+local_module(
+    name = "nestjs-telemetry",
+    deps = _DEPS,
+)

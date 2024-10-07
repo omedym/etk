@@ -1,10 +1,13 @@
-load("//tools:workspace_dir.bzl", "write_workspace_dir")
+load("@aspect_bazel_lib//lib:copy_file.bzl", "copy_file")
 load("@aspect_bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
-load("@aspect_rules_js//npm:defs.bzl", "npm_link_package")
+load("@aspect_rules_js//npm:defs.bzl", "npm_link_package", "npm_package")
 load("@aspect_rules_ts//ts:defs.bzl", "ts_config")
 load("@npm//:defs.bzl", "npm_link_all_packages")
+load("//tools:workspace_dir.bzl", "write_workspace_dir")
 
 package(default_visibility = ["//visibility:public"])
+
+exports_files(glob(["*.config.js"]) + [".swcrc"])
 
 write_workspace_dir(
   name = "workspace_dir",
@@ -16,13 +19,18 @@ ts_config(
 )
 
 npm_link_package(
+  name = "node_modules/@omedym/nestjs-telemetry",
+  src = "//packages/nestjs-telemetry:js",
+)
+
+npm_link_package(
   name = "node_modules/@omedym/nestjs-dmq-repository",
-  src = "//packages/nestjs-dmq-respository:npm",
+  src = "//packages/nestjs-dmq-repository:js",
 )
 
 npm_link_package(
   name = "node_modules/@omedym/nestjs-dmq-datastore-client-postgres",
-  src = "//datastores/nextjs-dmq-postgres:npm",
+  src = "//datastores/nestjs-dmq-postgres/prisma:npm",
 )
 
 npm_link_package(
@@ -50,12 +58,19 @@ copy_to_bin(
   visibility = ["//visibility:public"],
 )
 
+copy_to_bin(
+    name = "swc_config_jest",
+    srcs = ["swc.test.json"],
+    visibility = ["//visibility:public"],
+)
+
 filegroup(
   name = "test_unit_deps",
   srcs = [
     "//:node_modules/@jest/core",
     "//:node_modules/@jest/transform",
     "//:node_modules/@nestjs/testing",
+    "//:node_modules/@types",
     "//:node_modules/@types/jest",
     "//:node_modules/@types/supertest",
     "//:node_modules/c8",

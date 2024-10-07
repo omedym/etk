@@ -44,13 +44,13 @@ def _write_tsconfig_with_source_root_impl(ctx):
         outputs = [out],
         command = """
           if [ "{stamp}" == "None" ]; then
-              if [ -z "{prefix}" ]; then 
+              if [ -z "{prefix}" ]; then
                   prefix="$(readlink -f -- "{src}")"
-              else 
+              else
                   prefix="{prefix}"
               fi
           else
-              prefix=$(cat {prefix} | awk '$1 == "STABLE_GIT_COMMIT" {{ print "https://github.com/omedym/omedym-legacy/blob/" $2 "/{src}"}}')
+              prefix=$(cat {prefix} | awk '$1 == "STABLE_GIT_COMMIT" {{ print "https://github.com/omedym/etk/blob/" $2 "/{src}"}}')
           fi
           echo '{{ "compilerOptions": {{ "sourceRoot": ' >> {out_full}
           echo "\\"${{prefix}}/src\\"" >> {out_full}

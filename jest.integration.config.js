@@ -1,28 +1,32 @@
 module.exports = {
   preset: 'ts-jest',
-
-  // collectCoverage: true,
+  collectCoverageFrom: [
+    '**/*.{ts,tsx,js,jsx}',
+    '!**/node_modules/**',
+  ],
   coverageDirectory: process.env.COVERAGE_DIR,
-  coverageReporters: [ "text-summary", "lcov" ],
   haste: {
     enableSymlinks: true,
   },
   testEnvironment: 'node',
   testPathIgnorePatterns: ['/node_modules/'],
   testMatch: [
-    '**/*.test.{ts,tsx}',
-    // '!**/*.integration.test.{ts,tsx}',
+    // '**/*.{spec,test}.{ts,tsx}',
+    // '**/*.unit.{spec,test}.{ts,tsx}',
+    '**/*.integration.test.{ts,tsx}',
   ],
   transform: {
     // '^.+\\.[tj]sx?$' to process js/ts with `ts-jest`
+    // '^.+\\.m?[tj]sx?$' to process js/ts/mjs/mts with `ts-jest`
     '^.+\\.tsx?$': [
       'ts-jest',
       {
+        // tsconfig: 'tsconfig.bazel.json',
         // KEEP IN SYNC WITH `tsconfig.bazel.json`
         tsconfig: {
           "allowSyntheticDefaultImports": true,
           "baseUrl": ".",
-          "composite": true,
+          "composite": false,
           "declaration": true,
           "emitDecoratorMetadata": true,
           "esModuleInterop": true,
@@ -31,7 +35,13 @@ module.exports = {
           // "importHelpers": true,
           "incremental": true,
           "inlineSourceMap": true,
-          "lib": ["ESNext"],
+          // TODO: latest code doesn't build because the usage of `Blob` somewhere
+          // in the dependency graph. By now we simply add "DOM" api, but ideally
+          // we should figure out why this is being used at the server side.
+          "lib": [
+            "ESNext",
+            "DOM"
+          ],
           "module": "CommonJS",
           "moduleResolution": "Node",
           "resolveJsonModule": true,
@@ -39,26 +49,12 @@ module.exports = {
           // "skipDefaultLibCheck": false,
           // "skipLibCheck": false,
           "strict": true,
-          "strictNullChecks": true,
-          "strictPropertyInitialization": false,
-          "target": "ESNext",
-          // "types": ["Node"],
-          "noImplicitAny": true,
-          "noImplicitReturns": true,
+          "strictPropertyInitialization": true,
+          "target": "ESNext"
+          //"types": ["node"]
         },
-        "exclude": [
-          "external/*"
-        ]
       },
     ],
   },
   verbose: false,
-  coverageThreshold: {
-    // global: {
-    //   branches: 50,
-    //   functions: 15,
-    //   lines: 50,
-    //   statements: -10,
-    // },
-  },
 };

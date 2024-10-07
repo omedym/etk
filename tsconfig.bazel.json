@@ -1,12 +1,11 @@
 {
   // Bazel Specific TypeScript Config
-  // KEEP IN SYNC WITH `jest.unit.config.js`
   "compilerOptions": {
     "allowSyntheticDefaultImports": true,
     "baseUrl": ".",
-    "composite": true,
+    "composite": false,
     "declaration": true,
-    "declarationMap": false,
+    "declarationMap": true,
     "emitDecoratorMetadata": true,
     "esModuleInterop": true,
     "experimentalDecorators": true,
@@ -24,8 +23,10 @@
     "noImplicitReturns": true,
     "resolveJsonModule": true,
     "rootDir": ".",
-    // "skipDefaultLibCheck": false,
-    // "skipLibCheck": false,
+    "skipLibCheck": true,
+    // Set `sourceRoot` to  "/" to strip the build path prefix from
+    // generated source code references. This will improve issue grouping in Sentry.
+    "sourceRoot": "/",
     "strict": true,
     "strictNullChecks": true,
     "strictPropertyInitialization": false,
@@ -35,6 +36,7 @@
   // If building without sandboxing, we need to prevent TypeScript from descending into
   // Bazel's external folder which contains third-party Bazel dependencies.
   "exclude": [
-    "external/*"
+    "external",
+    "dist"
   ]
 }
